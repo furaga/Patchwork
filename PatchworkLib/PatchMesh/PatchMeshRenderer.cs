@@ -28,7 +28,15 @@ namespace PatchworkLib.PatchMesh
         SharpDXInfo RenderInfo;
         Dictionary<string, Texture2D> textureDict = new Dictionary<string, Texture2D>();
 
+        Texture2D whitePixel;
+
         float time = 0;
+
+        // DrawPoint()で描画する点の深度。MeshやLineより手前がいいからなるべく小さい値にするべき。
+        // TODO: 明示的に描画順を指定
+        const float PointRenderDepth = -1f;
+        const float LineRenderDepth = -0.5f;
+
 
         /// <summary>
         /// 
@@ -38,10 +46,20 @@ namespace PatchworkLib.PatchMesh
         /// <param name="setDefaultRenderInfo">PatchMeshRenderer.RenderInfoをSharpDXHelperがデフォルトで使用するrendering infoとして設定するか</param>
         public PatchMeshRenderer(IntPtr handle, Size size, bool setDefaultRenderInfo)
         {
-            RenderInfo = SharpDXHelper.Initialize(handle, size, rawVertices, rawIndices, new Matrix(), "test.png");
+            RenderInfo = SharpDXHelper.Initialize(handle, size, rawVertices, rawIndices, new Matrix(), "whitePixel.png");
+            whitePixel = SharpDXHelper.LoadTexture(RenderInfo, "whitePixel.png");
             if (setDefaultRenderInfo)
                 SharpDXHelper.SetDefaultRenderInfo(RenderInfo);
         }
+
+        public void Dispose()
+        {
+            if (whitePixel != null)
+                whitePixel.Dispose();
+            if (RenderInfo != null)
+                RenderInfo.Dispose();
+        }
+
 
         public void BeginDraw()
         {
@@ -56,16 +74,13 @@ namespace PatchworkLib.PatchMesh
         }
 
         /// <summary>
+        /// メッシュを描画。
         /// cameraPositionは x, y : [-∞, +∞], z : [-∞, 0)
         /// x, y が大きいほどカメラが右下に移動する
         /// zが小さいほどズームアウトする
         /// </summary>
-        /// <param name="mesh"></param>
-        /// <param name="patchKey"></param>
-        /// <param name="resources"></param>
-        /// <param name="formSize"></param>
         /// <param name="cameraPosition">x, y : [-∞, +∞], z : [-∞, 0).x, y が大きいほどカメラが右下に移動する.zが小さいほどズームアウトする</param>
-        public void Draw(PatchMesh mesh, string patchKey, PatchMeshRenderResources resources, Size formSize, Vector3 cameraPosition)
+        public void DrawMesh(PatchMesh mesh, string textureKey, PatchMeshRenderResources resources, Size formSize, Vector3 cameraPosition)
         {
             List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
             for (int i = 0; i < mesh.vertices.Count; i++)
@@ -73,38 +88,151 @@ namespace PatchworkLib.PatchMesh
                 Vector3 pos = vec3(mesh.vertices[i].position);
                 pos.Y *= -1;
                 DXColor col = DXColor.White;
-                Vector2 coord = vec2(mesh.vertices[i].GetTexcoord(patchKey));
+                Vector2 coord = vec2(mesh.vertices[i].GetTexcoord(textureKey));
                 rawVertices.Add(new VertexPositionColorTexture(pos, col, coord));
             }
 
             List<int> rawIndices = new List<int>();
             for (int i = 0; i < mesh.triangles.Count; i++)
             {
-                if (mesh.triangles[i].TextureKey != patchKey)
+                if (mesh.triangles[i].TextureKey != textureKey)
                     continue;
                 rawIndices.Add(mesh.triangles[i].Idx0);
                 rawIndices.Add(mesh.triangles[i].Idx1);
                 rawIndices.Add(mesh.triangles[i].Idx2);
             }
 
+            var texture = resources.GetTexture(PatchMeshRenderResources.GenerateResourceKey(mesh, textureKey));
+
+            Draw(rawVertices, rawIndices, texture, formSize, cameraPosition, PrimitiveTopology.TriangleList);
+        }
+
+        /// <summary>
+        /// メッシュのワイヤフレームを描画
+        /// </summary>
+        public void DrawWireframe(PatchMesh mesh, string textureKey, DXColor col, Size formSize, Vector3 cameraPosition)
+        {
+            List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
+            List<int> rawIndices = new List<int>();
+
+            for (int i = 0; i < mesh.triangles.Count; i++)
+            {
+                if (mesh.triangles[i].TextureKey != textureKey)
+                    continue;
+
+                PointF p0 = mesh.vertices[mesh.triangles[i].Idx0].position;
+                PointF p1 = mesh.vertices[mesh.triangles[i].Idx1].position;
+                PointF p2 = mesh.vertices[mesh.triangles[i].Idx2].position;
+
+                var pts = GetLineMeshPoint(p0, p1, 1);
+                pts.AddRange(GetLineMeshPoint(p1, p2, 1));
+                pts.AddRange(GetLineMeshPoint(p2, p0, 1));
+
+                int offset = rawVertices.Count;
+
+                foreach (var p in pts)
+                {
+                    Vector3 pos = vec3(p);
+                    pos.Y *= -1;
+                    pos.Z = LineRenderDepth;
+                    rawVertices.Add(new VertexPositionColorTexture(pos, col, Vector2.Zero));
+                }
+
+                rawIndices.AddRange(
+                    new []
+                    {
+                        0, 1, 2, 2, 1, 3,
+                        4, 5, 6, 6, 5, 7,
+                        8, 9, 10, 10, 9, 11,
+                    }.Select(val => val + offset).ToArray());
+            }
+
+            Draw(rawVertices, rawIndices, whitePixel, formSize, cameraPosition, PrimitiveTopology.TriangleList);
+        }
+
+        /// <summary>
+        /// 点を描画
+        /// </summary>
+        public void DrawPoint(PointF position, DXColor col, Size formSize, Vector3 cameraPosition)
+        {
+            List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
+            for (int i = 0; i < 4; i++)
+            {
+                Vector3 pos = vec3(new PointF(position.X - 2 + 4 * (i % 2), position.Y - 2 + 4 * (i / 2)));
+                pos.Y *= -1;
+                pos.Z = PointRenderDepth;
+                rawVertices.Add(new VertexPositionColorTexture(pos, col, Vector2.Zero));
+            }
+
+            List<int> rawIndices = new List<int>() { 0, 1, 2, 2, 1, 3 };
+
+            Draw(rawVertices, rawIndices, whitePixel, formSize, cameraPosition, PrimitiveTopology.TriangleList);
+        }
+
+        /// <summary>
+        /// 線を描画
+        /// </summary>
+        public void DrawLine(PointF start, PointF end, DXColor col, Size formSize, Vector3 cameraPosition)
+        {
+            List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
+            
+            Vector3 vpos = vec3(start);
+            vpos.Y *= -1;
+            vpos.Z = PointRenderDepth;
+            rawVertices.Add(new VertexPositionColorTexture(vpos, col, Vector2.Zero));
+
+            Vector3 vend = vec3(end);
+            vend.Y *= -1;
+            vend.Z = PointRenderDepth;
+            rawVertices.Add(new VertexPositionColorTexture(vend, col, Vector2.Zero));
+            
+            List<int> rawIndices = new List<int>() { 0, 1 };
+
+            Draw(rawVertices, rawIndices, whitePixel, formSize, cameraPosition, PrimitiveTopology.LineList);
+        }
+
+        List<PointF> GetLineMeshPoint(PointF start, PointF end, float lineWidth)
+        {
+            float dx = end.X - start.X;
+            float dy = end.Y - start.Y;
+            float dist = FLib.FMath.Distance(start, end);
+            if (dist <= 1e-4)
+                return new List<PointF>();
+
+            float nx = dy / dist * lineWidth * 0.5f;
+            float ny = -dx / dist * lineWidth * 0.5f;
+
+            var ls = new List<PointF>()
+            {
+                new PointF(start.X + nx, start.Y + ny),
+                new PointF(start.X - nx, start.Y - ny),
+                new PointF(end.X + nx, end.Y + ny),
+                new PointF(end.X - nx, end.Y - ny),
+            };
+
+            return ls;
+        }
+
+        void Draw(List<VertexPositionColorTexture> rawVertices, List<int> rawIndices, Texture2D texture, Size formSize, Vector3 cameraPosition, PrimitiveTopology primitiveType)
+        {
             var view = Matrix.LookAtLH(
-                new Vector3(cameraPosition.X, -cameraPosition.Y, cameraPosition.Z), 
-                new Vector3(cameraPosition.X, -cameraPosition.Y, 0),
-                Vector3.UnitY);
+                  new Vector3(cameraPosition.X, -cameraPosition.Y, cameraPosition.Z),
+                  new Vector3(cameraPosition.X, -cameraPosition.Y, 0),
+                  Vector3.UnitY);
             var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, formSize.Width / (float)formSize.Height, 0.1f, 10000.0f);
             var viewProj = Matrix.Multiply(view, proj);
             var worldViewProj = Matrix.RotationX(time) * Matrix.RotationY(time * 2) * Matrix.RotationZ(time * .7f) * viewProj;
             worldViewProj.Transpose();
-
-            var texture = resources.GetTexture(PatchMeshRenderResources.GenerateResourceKey(mesh, patchKey));
 
             SharpDXHelper.UpdateVertexBuffer(RenderInfo, rawVertices);
             SharpDXHelper.UpdateIndexBuffer(RenderInfo, rawIndices);
             SharpDXHelper.UpdateCameraBuffer(RenderInfo, worldViewProj);
             if (texture != null)
                 SharpDXHelper.SwitchTexture(RenderInfo, texture);
-            SharpDXHelper.DrawMesh(RenderInfo);
+
+            SharpDXHelper.Draw(RenderInfo, primitiveType);
         }
+
 
         Vector2 vec2(PointF pt)
         {
@@ -116,11 +244,23 @@ namespace PatchworkLib.PatchMesh
             return new Vector3(pt.X, pt.Y, 0);
         }
 
-        public void Dispose()
-        {
-            if (RenderInfo != null)
-                RenderInfo.Dispose();
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         #region デバッグ用
         static VertexPositionColorTexture[] rawVertices = new[]

@@ -15,6 +15,9 @@ namespace PatchworkLib.PatchMesh
 {
     public class PatchMesh
     {
+        Guid _guid = Guid.NewGuid();
+        internal string Id { get { return _guid.ToString(); } }
+
         internal List<PatchVertex> vertices = new List<PatchVertex>();
         List<PatchControlPoint> controlPoints = new List<PatchControlPoint>();
         internal List<PatchTriangle> triangles = new List<PatchTriangle>();
@@ -226,5 +229,6 @@ namespace PatchworkLib.PatchMesh
                 ls.Add(new PatchControlPoint(c));
             return ls;
         }
+
     }
 }

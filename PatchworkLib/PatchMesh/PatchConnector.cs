@@ -23,8 +23,9 @@ namespace PatchworkLib.PatchMesh
         /// 2. メッシュ同士が自然に繋がるように位置・角度・スケールを調整(fitting(), adjustposition())
         /// 3. 繋ぎ目が重なるようにARAP（expand()）
         /// 4. 新しいARAP可能なひとつのメッシュを生成(combine)                                                                                                                                                                                                                                                                                          /// </summary>
+        /// (5. リソースの更新。これはここでやるべきなのだろうか？）
         /// </summary>
-        public static PatchSkeletalMesh  Connect(PatchSkeletalMesh smesh1, PatchSkeletalMesh smesh2, PatchSkeleton skl)
+        public static PatchSkeletalMesh Connect(PatchSkeletalMesh smesh1, PatchSkeletalMesh smesh2, PatchSkeleton skl, PatchMeshRenderResources resources)
         {
             if (skl == null)
                 return null;
@@ -67,6 +68,17 @@ namespace PatchworkLib.PatchMesh
 #if DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(combinedSMesh, combinedSMesh.sections).Save("output/8_conbinedMesh.png");
 #endif
+            
+            List<string> textureKeys = resources.GetResourceKeyByPatchMesh(smesh1.mesh);
+            textureKeys.AddRange(resources.GetResourceKeyByPatchMesh(smesh2.mesh));
+
+            foreach (var key in textureKeys)
+            {
+                string patchKey = key.Split(':').Last();
+                string newKey = PatchMeshRenderResources.GenerateResourceKey(combinedSMesh.mesh, patchKey);
+                // TODO: テクスチャはコピーしたほうが良い？
+                resources.Add(newKey, resources.GetTexture(key));
+            }
 
             return combinedSMesh;
         }

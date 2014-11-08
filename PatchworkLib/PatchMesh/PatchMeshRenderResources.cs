@@ -35,7 +35,9 @@ namespace PatchworkLib.PatchMesh
         {
             if (obj == null)
                 return ":" + patchKey;
-            return obj.GetHashCode() + ":" + patchKey;
+            string key = obj.Id + ":" + patchKey;
+            System.Diagnostics.Debug.Assert(key.Count(c => c == ':') == 1);
+            return key;
         }
 
         public void Add(string resourceKey, Texture2D texture)
@@ -47,6 +49,8 @@ namespace PatchworkLib.PatchMesh
             }
             textureDict[resourceKey] = texture;
         }
+
+
         public void Remove(string resourceKey)
         {
             if (textureDict.ContainsKey(resourceKey))
@@ -62,6 +66,16 @@ namespace PatchworkLib.PatchMesh
                 if (textureDict[resourceKey] != null && !textureDict[resourceKey].IsDisposed)
                     return textureDict[resourceKey];
             return null;
+        }
+
+        public List<string> GetResourceKeyByPatchMesh(PatchMesh m)
+        {
+            List<string> ls = new List<string>();
+            string prefix = m.Id + ":";
+            foreach (var key in textureDict.Keys)
+                if (key.StartsWith(prefix))
+                    ls.Add(key);
+            return ls;
         }
 
         public void Dispose()
