@@ -11,11 +11,11 @@ using System.Drawing.Drawing2D;
 
 namespace PatchworkLib.PatchMesh
 {
-    class PatchVertex
+    public class PatchVertex
     {
-        public PointF point;
-        public readonly PointF orgPoint;
-        public readonly int part;
+        public PointF position;
+        public PointF orgPosition;
+        public int part;
         // 各頂点に割り当てるテクスチャ座標
         // 複数の画像を重ねて描く（ひとつの頂点に複数のテクスチャ座標を持つ）場合があるので、辞書として記録する
         Dictionary<string, PointF> texcoordDict = new Dictionary<string,PointF>();
@@ -29,9 +29,24 @@ namespace PatchworkLib.PatchMesh
         /// <param name="texcoord">元画像におけるこの頂点の位置[0,1]。普通はorgPointと同じ値になる</param>
         public PatchVertex(PointF orgPoint, int part, string patchKey, PointF texcoord)
         {
-            this.point = this.orgPoint = orgPoint;
+            this.position = this.orgPosition = orgPoint;
             this.part = part;
             this.texcoordDict[patchKey] = texcoord;
+        }
+
+        public PatchVertex(PointF orgPoint, int part, Dictionary<string, PointF> texcoordDict)
+        {
+            this.position = this.orgPosition = orgPoint;
+            this.part = part;
+            this.texcoordDict= new Dictionary<string,PointF>(texcoordDict);
+        }
+
+        public PatchVertex(PatchVertex v)
+        {
+            this.position = v.orgPosition;
+            this.orgPosition = v.position;
+            this.part = v.part;
+            this.texcoordDict = new Dictionary<string, PointF>(v.texcoordDict);
         }
 
         public PointF GetTexcoord(string patchKey)
@@ -39,6 +54,11 @@ namespace PatchworkLib.PatchMesh
             if (texcoordDict.ContainsKey(patchKey))
                 return texcoordDict[patchKey];
             return new PointF();
+        }
+
+        public Dictionary<string, PointF> CopyTexcoordDict()
+        {
+            return new Dictionary<string, PointF>(texcoordDict);
         }
     }
 }

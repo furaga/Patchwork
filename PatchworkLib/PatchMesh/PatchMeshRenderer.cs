@@ -25,15 +25,34 @@ namespace PatchworkLib.PatchMesh
     {
         public bool rotateCamera = false;
 
-        public SharpDXInfo RenderInfo { get; private set; }
+        SharpDXInfo RenderInfo;
         Dictionary<string, Texture2D> textureDict = new Dictionary<string, Texture2D>();
 
         float time = 0;
-        float x = 0;
 
-        public PatchMeshRenderer(IntPtr handle, Size size)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="handle"></param>
+        /// <param name="size"></param>
+        /// <param name="setDefaultRenderInfo">PatchMeshRenderer.RenderInfoをSharpDXHelperがデフォルトで使用するrendering infoとして設定するか</param>
+        public PatchMeshRenderer(IntPtr handle, Size size, bool setDefaultRenderInfo)
         {
             RenderInfo = SharpDXHelper.Initialize(handle, size, rawVertices, rawIndices, new Matrix(), "test.png");
+            if (setDefaultRenderInfo)
+                SharpDXHelper.SetDefaultRenderInfo(RenderInfo);
+        }
+
+        public void BeginDraw()
+        {
+            if (rotateCamera)
+                time += 0.02f;
+            SharpDXHelper.BeginDraw(RenderInfo);   
+        }
+
+        public void EndDraw()
+        {
+            SharpDXHelper.EndDraw(RenderInfo);
         }
 
         /// <summary>
@@ -51,7 +70,7 @@ namespace PatchworkLib.PatchMesh
             List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
             for (int i = 0; i < mesh.vertices.Count; i++)
             {
-                Vector3 pos = vec3(mesh.vertices[i].point);
+                Vector3 pos = vec3(mesh.vertices[i].position);
                 pos.Y *= -1;
                 DXColor col = DXColor.White;
                 Vector2 coord = vec2(mesh.vertices[i].GetTexcoord(patchKey));
@@ -59,18 +78,15 @@ namespace PatchworkLib.PatchMesh
             }
 
             List<int> rawIndices = new List<int>();
-            for (int i = 0; i < mesh.mesh.Count; i++)
+            for (int i = 0; i < mesh.triangles.Count; i++)
             {
-                if (mesh.mesh[i].PatchKey != patchKey)
+                if (mesh.triangles[i].TextureKey != patchKey)
                     continue;
-                rawIndices.Add(mesh.mesh[i].Idx0);
-                rawIndices.Add(mesh.mesh[i].Idx1);
-                rawIndices.Add(mesh.mesh[i].Idx2);
+                rawIndices.Add(mesh.triangles[i].Idx0);
+                rawIndices.Add(mesh.triangles[i].Idx1);
+                rawIndices.Add(mesh.triangles[i].Idx2);
             }
 
-            // TODO: 画像サイズに応じてカメラ位置を変更
-            if (rotateCamera)
-                time += 0.02f;
             var view = Matrix.LookAtLH(
                 new Vector3(cameraPosition.X, -cameraPosition.Y, cameraPosition.Z), 
                 new Vector3(cameraPosition.X, -cameraPosition.Y, 0),
@@ -82,14 +98,12 @@ namespace PatchworkLib.PatchMesh
 
             var texture = resources.GetTexture(PatchMeshRenderResources.GenerateResourceKey(mesh, patchKey));
 
-            SharpDXHelper.BeginDraw(RenderInfo);
             SharpDXHelper.UpdateVertexBuffer(RenderInfo, rawVertices);
             SharpDXHelper.UpdateIndexBuffer(RenderInfo, rawIndices);
             SharpDXHelper.UpdateCameraBuffer(RenderInfo, worldViewProj);
             if (texture != null)
                 SharpDXHelper.SwitchTexture(RenderInfo, texture);
             SharpDXHelper.DrawMesh(RenderInfo);
-            SharpDXHelper.EndDraw(RenderInfo);
         }
 
         Vector2 vec2(PointF pt)

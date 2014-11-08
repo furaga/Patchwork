@@ -36,6 +36,41 @@ namespace PatchworkLib.ARAPDeformation
             this.meshPtToPart = new List<int>(pointToPart);
         }
 
+        public List<PointF> CopyMeshPointList()
+        {
+            return new List<PointF>(meshPointList);
+        }
+
+        internal void ClearControlPoints()
+        {
+            controls.Clear();
+            controlsToPart.Clear();
+            orgControls.Clear();
+            weights = A00 = A01 = A10 = A11 = null;
+            D = null;
+        }
+
+        internal bool AddControlPoint(PointF pt, PointF orgPt, int part)
+        {
+            if (controls.Contains(pt))
+                return false;
+
+            controls.Add(pt);
+            orgControls.Add(orgPt);
+            controlsToPart.Add(part);
+
+            return true;
+        }
+
+        internal void UpdateControlPoint(List<PointF> pts)
+        {
+            if (pts.Count < controls.Count)
+                return;
+
+            for (int i = 0; i < controls.Count; i++)
+                controls[i] = pts[i];
+        }
+        /*
         public void ClearControlPoints()
         {
             controls.Clear();
@@ -45,10 +80,11 @@ namespace PatchworkLib.ARAPDeformation
             D = null;
         }
 
-        public void AddControlPoint(PointF pt, PointF orgPt)
+        public bool AddControlPoint(PointF pt, PointF orgPt, out int part)
         {
+            part = -1;
             if (controls.Contains(pt))
-                return;
+                return false;
 
             controls.Add(pt);
             orgControls.Add(orgPt);
@@ -57,28 +93,38 @@ namespace PatchworkLib.ARAPDeformation
             FMath.GetMinElement(meshPointList, p => FMath.SqDistance(p, orgPt), out minIdx);
 
             if (minIdx >= 0)
-                controlsToPart.Add(meshPtToPart[minIdx]);
+                part = meshPtToPart[minIdx];
             else
-                controlsToPart.Add(-1);
+                part = -1;
+
+            controlsToPart.Add(part);
+
+            return true;
         }
 
-        public void RemoveControlPoint(PointF pt)
+        public int  RemoveControlPoint(PointF pt)
         {
             if (controls.Contains(pt))
             {
-                orgControls.RemoveAt(controls.IndexOf(pt));
+                int idx = controls.IndexOf(pt);
+                orgControls.RemoveAt(idx);
                 controls.Remove(pt);
+                return idx;
             }
+            return -1;
         }
 
-        public void TranslateControlPoint(PointF pt, PointF to, bool flush)
+        public int TranslateControlPoint(PointF pt, PointF to, bool flush)
         {
             if (!controls.Contains(pt))
-                return;
-            controls[controls.IndexOf(pt)] = to;
+                return - 1;
+            int idx = controls.IndexOf(pt);
+            controls[idx] = to;
             if (flush)
                 FlushDefomation();
+            return idx;
         }
+         * */
 
         public void FlushDefomation()
         {
@@ -131,9 +177,20 @@ namespace PatchworkLib.ARAPDeformation
                     }
                 }
 
+                // 追加　2014/11/08
+                int nonzeroCnt = 0;
+                for (int i = 0; i < controls.Count; i++)
+                    if (weights[i + offset] != 0)
+                        nonzeroCnt++;
+                if (nonzeroCnt <= 1)
+                    continue;
+//                    return;
+
                 PointF? Pa = AverageWeight(orgControls, weights, vIdx);
                 if (Pa == null || !Pa.HasValue)
-                    return;
+                    // 変更　2014/11/08
+                    continue;
+//                    return;
 
                 PointF[] Ph = new PointF[orgControls.Count];
                 for (int i = 0; i < orgControls.Count; i++)
@@ -148,6 +205,7 @@ namespace PatchworkLib.ARAPDeformation
                 float mu = 0;
                 for (int i = 0; i < controls.Count; i++)
                     mu += (float)(Ph[i].X * Ph[i].X + Ph[i].Y * Ph[i].Y) * weights[i + offset];
+
 
                 D[vIdx].X = orgMeshPointList[vIdx].X - Pa.Value.X;
                 D[vIdx].Y = orgMeshPointList[vIdx].Y - Pa.Value.Y;
@@ -190,6 +248,16 @@ namespace PatchworkLib.ARAPDeformation
             for (int vIdx = 0; vIdx < meshPointList.Count; vIdx++)
             {
                 int offset = vIdx * controls.Count;
+
+                // 追加　2014/11/08
+                int nonzeroCnt = 0;
+                for (int i = 0; i < controls.Count; i++)
+                    if (weights[i + offset] != 0)
+                        nonzeroCnt++;
+                if (nonzeroCnt <= 1)
+                    continue;
+
+
                 bool flg = false;
                 for (int i = offset; i < offset + controls.Count; i++)
                 {
@@ -262,6 +330,62 @@ namespace PatchworkLib.ARAPDeformation
             int idx = orgControls.IndexOf(orgPt);
             return controls[idx];
         }
+
+        /// <summary>
+        /// 独立したARAP変形用の関数。少ない頂点をいますぐ変形させたいときに使う(現状PatchConnector.ExpandPatches()内のみで利用)
+        /// </summary>
+        /// <param name="pts">動かしたい点</param>
+        /// <param name="moves">orgControlPoint - currentControlPoint のリスト</param>
+        /// <returns></returns>
+        internal static List<PointF> Deform(List<PointF> pts, List<Tuple<PointF, PointF>> moves)
+        {
+            List<PointF> newPts = new List<PointF>();
+            for (int i = 0; i < pts.Count; i++)
+            {
+                bool finish = false;
+                List<float> ws = new List<float>();
+                float w_sum = 0;
+
+                foreach (var mv in moves)
+                {
+                    if (mv.Item1 == pts[i])
+                    {
+                        newPts.Add(mv.Item2);
+                        break;
+                    }
+                    float w = (float)(1 / (0.01 + Math.Pow(FMath.Distance(mv.Item1, pts[i]), 2)));
+                    ws.Add(w);
+                    w_sum += w;
+                }
+
+                if (finish)
+                    continue;
+
+                if (w_sum <= 1e-4)
+                {
+                    newPts.Add(pts[i]);
+                    continue;
+                }
+
+                float inv_w_sum = 1 / w_sum;
+                for (int j = 0; j < moves.Count; j++)
+                    ws[j] *= inv_w_sum;
+
+                float x = pts[i].X;
+                float y = pts[i].Y;
+                for (int j = 0; j < moves.Count; j++)
+                {
+                    var mv = moves[j];
+                    float dx = mv.Item2.X - mv.Item1.X;
+                    float dy = mv.Item2.Y - mv.Item1.Y;
+                    x += dx * ws[j];
+                    y += dy * ws[j];
+                }
+                newPts.Add(new PointF(x, y));
+            }
+            return newPts;
+        }
+
 
     }
 }

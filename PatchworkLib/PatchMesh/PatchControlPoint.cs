@@ -11,16 +11,24 @@ using System.Drawing.Drawing2D;
 
 namespace PatchworkLib.PatchMesh
 {
-    class PatchControlPoint
+    public class PatchControlPoint
     {
-        public PointF point;
-        public readonly PointF orgPoint;
+        public PointF position;
+        public readonly PointF orgPosition;
         public readonly int part;
 
         public PatchControlPoint(PointF orgPoint, int part)
         {
-            this.point = this.orgPoint = orgPoint;
+            this.position = this.orgPosition = orgPoint;
             this.part = part;
         }
+
+        public PatchControlPoint(PatchControlPoint c)
+        {
+            this.position = c.position;
+            this.orgPosition = c.orgPosition;
+            this.part = c.part;
+        }
+
     }
 }

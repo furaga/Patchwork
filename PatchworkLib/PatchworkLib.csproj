@@ -68,8 +68,13 @@
     <Compile Include="PatchMesh\PatchMesh.cs" />
     <Compile Include="PatchMesh\PatchMeshRenderer.cs" />
     <Compile Include="PatchMesh\PatchMeshRenderResources.cs" />
+    <Compile Include="PatchMesh\PatchSkeletalMesh.cs" />
+    <Compile Include="PatchMesh\PatchSkeletalMeshRenderer.cs" />
+    <Compile Include="PatchMesh\PatchSkeleton.cs" />
+    <Compile Include="PatchMesh\PatchSkeletonFitting.cs" />
     <Compile Include="PatchMesh\PatchTriangle.cs" />
     <Compile Include="PatchMesh\PatchVertex.cs" />
+    <Compile Include="PatchMesh\PatchConnector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

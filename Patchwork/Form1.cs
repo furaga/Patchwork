@@ -1,4 +1,10 @@
-﻿using System;
+﻿
+//
+// TODO: 適当な２つのパッチを読み込んでつないでみる
+//
+
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -57,11 +63,14 @@ namespace Patchwork
         // 描画
         //---------------------------------------------------------
 
-        PatchMesh patches;
+        List<PatchSkeletalMesh> patchesList = new List<PatchSkeletalMesh>();
+        List<string> patchKeyList = new List<string>();
         PatchMeshRenderer renderer;
         PatchMeshRenderResources resources = new PatchMeshRenderResources();
         Vector3 cameraPosition = new Vector3(100, 100, -1000);
-        string patchKey = "patch";
+
+        int mesh1, mesh2, mesh3;
+
 
         //---------------------------------------------------------
         
@@ -83,30 +92,95 @@ namespace Patchwork
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            renderer = new PatchMeshRenderer(canvas.Handle, canvas.ClientSize);
+            FLib.FileManager.OpenExplorer("output");
+
+            renderer = new PatchMeshRenderer(canvas.Handle, canvas.ClientSize, true);
 
             // Magic2Dで作ったセグメントをロードする
             Dictionary<string, Bitmap> bitmaps = new Dictionary<string, Bitmap>();
-            var dict = Magic2D.SegmentToPatch.LoadPatches(".", "3_segmentation", bitmaps);
-            int id = 2;
-            patchKey = dict.ElementAt(id).Key;
-            patches = dict.ElementAt(id).Value;
+            Dictionary<string, PatchSkeletalMesh> dict = Magic2D.SegmentToPatch.LoadPatches(".", "3_segmentation", bitmaps);
+
+            int i = 0;
+            foreach (var kv in dict)
+            {
+                patchesList.Add(kv.Value);
+                patchKeyList.Add(kv.Key);
+
+                if (kv.Key == "scr1.part1")
+                    mesh1 = i;
+                if (kv.Key == "scr1.part3")
+                    mesh2 = i;
+                i++;
+            }
+
+
+            //
+            // for test
+            //
+            PatchSkeleton refSkeleton = PatchSkeleton.Load("refSkeleton.skl");
+            var newMesh = PatchConnector.Connect(patchesList[mesh1], patchesList[mesh2], refSkeleton);
+            patchesList.Add(newMesh);
+            mesh3 = patchesList.Count - 1;
+
+            var key31 =PatchMeshRenderResources.GenerateResourceKey(patchesList[ mesh3].Mesh, patchKeyList[mesh1]);
+            var key32 =PatchMeshRenderResources.GenerateResourceKey(patchesList[ mesh3].Mesh, patchKeyList[mesh2]);
+            var key11 =PatchMeshRenderResources.GenerateResourceKey(patchesList[ mesh1].Mesh, patchKeyList[mesh1]);
+            var key22 =PatchMeshRenderResources.GenerateResourceKey(patchesList[ mesh2].Mesh, patchKeyList[mesh2]);
+            resources.Add(key31, SharpDXHelper.BitmapToTexture(bitmaps[key11]));
+            resources.Add(key32, SharpDXHelper.BitmapToTexture(bitmaps[key22]));
+
+            // arap
+            patchesList[mesh3].Mesh.BeginDeformation();
+
+
             foreach (var kv in bitmaps)
-                resources.Add(kv.Key, SharpDXHelper.BitmapToTexture(renderer.RenderInfo, kv.Value));
+                resources.Add(kv.Key, SharpDXHelper.BitmapToTexture(kv.Value));
+
+
+            PatchSkeletalMeshRenderer.ToBitmap(patchesList[mesh1]).Save("output/mesh1.png");
+            PatchSkeletalMeshRenderer.ToBitmap(patchesList[mesh2]).Save("output/mesh2.png");
+
 
             canvas.MouseWheel += canvas_MouseWheel;
+
+            
         }
 
+        PointF pt1 = new PointF(150, 200);
+        PointF pt2 = new PointF(350, 200);
+        PointF pt3 = new PointF(150, 500);
+        PointF pt4 = new PointF(350, 500);
+        PointF pt5 = new PointF(150, 700);
+        PointF pt6 = new PointF(350, 700);
+        float time = 0;
         private void timer_Tick(object sender, EventArgs e)
         {
+            time += 0.1f;
+            float angle = time;
+            float r = 30;
+            PointF newpt3 = new PointF(150 + r * (float)Math.Cos(angle), 500 + r * (float)Math.Sin(angle));
+            patchesList[mesh3].Mesh.TranslateControlPoint(pt3, newpt3, true);
+            if (time <= 0.3)
+                PatchSkeletalMeshRenderer.ToBitmap(patchesList[mesh3]).Save("output/mesh_combine.png");
+            pt3 = newpt3;
+
             DrawCanvas();
         }
 
+        //
+        // メッシュを描画
+        //
         void DrawCanvas()
         {
-            if (renderer == null || patches == null)
+            if (renderer == null || patchesList == null)
                 return;
-            renderer.Draw(patches, patchKey, resources, canvas.ClientSize, cameraPosition);
+
+//　           renderer.rotateCamera = true;
+            renderer.BeginDraw();
+//            renderer.Draw(patchesList[mesh1].Mesh, patchKeyList[mesh1], resources, canvas.ClientSize, cameraPosition);
+            renderer.Draw(patchesList[mesh3].Mesh, patchKeyList[mesh1], resources, canvas.ClientSize, cameraPosition + new Vector3(0, 300, 0));
+            renderer.Draw(patchesList[mesh3].Mesh, patchKeyList[mesh2], resources, canvas.ClientSize, cameraPosition + new Vector3(0, 300, 0));
+            renderer.EndDraw();
         }
 
         // この中で描画するとバッファリングのせい？で画面がちらつく

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PatchworkLib.PatchMesh
 {
-    struct PatchTriangle
+    public struct PatchTriangle
     {
         int _idx0;
         int _idx1;
@@ -16,14 +16,23 @@ namespace PatchworkLib.PatchMesh
         public int Idx0 { get { return _idx0; } }
         public int Idx1 { get { return _idx1; } }
         public int Idx2 { get { return _idx2; } }
-        public string PatchKey { get { return _key; } } 
+        public string TextureKey { get { return _key; } } 
 
-        public PatchTriangle(int idx0, int idx1, int idx2, string patchKey)
+        public PatchTriangle(int idx0, int idx1, int idx2, string textureKey)
         {
             this._idx0 = idx0;
             this._idx1 = idx1;
             this._idx2 = idx2;
-            this._key = patchKey;
+            this._key = textureKey;
         }
+
+        public PatchTriangle(PatchTriangle t)
+        {
+            this._idx0 = t._idx0;
+            this._idx1 = t._idx1;
+            this._idx2 = t._idx2;
+            this._key = t._key;
+        }
+
     }
 }
