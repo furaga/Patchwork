@@ -1,6 +1,8 @@
 ﻿
 //
-// TODO: スケルトンを動かすことでメッシュを操作
+// TODO: 3つ以上メッシュをつなげたときに動くか
+// TODO: スケルトンが動かしづらい
+// TODO: Patchのリストをlistviewに表示してD&Dでcanvasに追加できるように
 //
 
 
@@ -143,14 +145,17 @@ namespace Patchwork
             //            renderer.rotateCamera = true;
             renderer.BeginDraw();
 
-       //     foreach (var key in patchKeys)
-         //       renderer.DrawMesh(patch.Mesh, key, resources, canvas.ClientSize, cameraPosition + new Vector3(0, 0, 0));
-
             foreach (var key in patchKeys)
-                renderer.DrawWireframe(patch.Mesh, key, DXColor.LightGray, canvas.ClientSize, cameraPosition + new Vector3(0, 0, 0));
+                renderer.DrawMesh(patch.Mesh, key, resources, canvas.ClientSize, cameraPosition + new Vector3(0, 0, 0));
             
             for (int i = 0; i < 100; i++)
-                renderer.DrawPoint(new PointF(100 * (i % 10), 100 * (i / 10)), DXColor.Green, canvas.ClientSize, cameraPosition);
+                renderer.DrawPoint(new PointF(100 * (i % 10), 100 * (i / 10)), 4, DXColor.Green, canvas.ClientSize, cameraPosition);
+
+            foreach (var b in refSkeleton.bones)
+                renderer.DrawLine(b.src.position, b.dst.position, 4, DXColor.White, canvas.ClientSize, cameraPosition);
+            
+            foreach (var j in refSkeleton.joints)
+                renderer.DrawPoint(j.position, 8, DXColor.Yellow, canvas.ClientSize, cameraPosition);
 
             renderer.EndDraw();
         }
@@ -165,11 +170,19 @@ namespace Patchwork
         //--------------------------------------------------------------------
 
         PointF prevMousePos = new PointF();
+        PatchSkeletonJoint draggedJoint = null;
 
         private void canvas_MouseDown(object sender, MouseEventArgs e)
         {
             // マウスホイールができるようにフォーカスを当てる
             canvas.Focus();
+
+            draggedJoint = null;
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
+                draggedJoint = refSkeleton.GetNearestJoint(new PointF(p.X, p.Y), 30, new System.Drawing.Drawing2D.Matrix());
+            }
 
             // マウスドラッグ用にクリック位置を保存
             prevMousePos = e.Location;
@@ -178,10 +191,23 @@ namespace Patchwork
         private void canvas_MouseUp(object sender, MouseEventArgs e)
         {
             prevMousePos = PointF.Empty;
+
+            draggedJoint = null;
         }
 
         private void canvas_MouseMove(object sender, MouseEventArgs e)
         {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                if (draggedJoint != null)
+                {
+                    Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
+                    draggedJoint.position = new PointF(p.X, p.Y);
+                    PatchSkeletonFitting.Fitting(patch, refSkeleton);
+                }
+            }
+
+
             if (e.Button == System.Windows.Forms.MouseButtons.Right)
             {
                 PointF pos = e.Location;

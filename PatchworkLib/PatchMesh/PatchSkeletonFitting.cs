@@ -12,7 +12,7 @@ using FLib;
 
 namespace PatchworkLib.PatchMesh
 {
-    class PatchSkeletonFitting
+    public class PatchSkeletonFitting
     {
         public static void Fitting(PatchSkeletalMesh mesh, PatchSkeleton skl)
         {

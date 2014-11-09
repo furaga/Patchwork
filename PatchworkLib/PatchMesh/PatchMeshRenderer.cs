@@ -23,26 +23,25 @@ namespace PatchworkLib.PatchMesh
 {
     public class PatchMeshRenderer : IDisposable
     {
-        public bool rotateCamera = false;
-
-        SharpDXInfo RenderInfo;
-        Dictionary<string, Texture2D> textureDict = new Dictionary<string, Texture2D>();
-
-        Texture2D whitePixel;
-
-        float time = 0;
-
         // DrawPoint()で描画する点の深度。MeshやLineより手前がいいからなるべく小さい値にするべき。
         // TODO: 明示的に描画順を指定
         const float PointRenderDepth = -1f;
         const float LineRenderDepth = -0.5f;
 
+        const float nearClip = 0.1f;
+        const float farClip = 10000.0f;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="handle"></param>
-        /// <param name="size"></param>
+        public bool rotateCamera = false;
+
+        SharpDXInfo RenderInfo;
+        Dictionary<string, Texture2D> textureDict = new Dictionary<string, Texture2D>();
+        Texture2D whitePixel;
+
+
+        float time = 0;
+
+
+
         /// <param name="setDefaultRenderInfo">PatchMeshRenderer.RenderInfoをSharpDXHelperがデフォルトで使用するrendering infoとして設定するか</param>
         public PatchMeshRenderer(IntPtr handle, Size size, bool setDefaultRenderInfo)
         {
@@ -153,12 +152,12 @@ namespace PatchworkLib.PatchMesh
         /// <summary>
         /// 点を描画
         /// </summary>
-        public void DrawPoint(PointF position, DXColor col, Size formSize, Vector3 cameraPosition)
+        public void DrawPoint(PointF position, float pointSize, DXColor col, Size formSize, Vector3 cameraPosition)
         {
             List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
             for (int i = 0; i < 4; i++)
             {
-                Vector3 pos = vec3(new PointF(position.X - 2 + 4 * (i % 2), position.Y - 2 + 4 * (i / 2)));
+                Vector3 pos = vec3(new PointF(position.X - pointSize * 0.5f + pointSize * (i % 2), position.Y - pointSize * 0.5f + pointSize * (i / 2)));
                 pos.Y *= -1;
                 pos.Z = PointRenderDepth;
                 rawVertices.Add(new VertexPositionColorTexture(pos, col, Vector2.Zero));
@@ -172,23 +171,22 @@ namespace PatchworkLib.PatchMesh
         /// <summary>
         /// 線を描画
         /// </summary>
-        public void DrawLine(PointF start, PointF end, DXColor col, Size formSize, Vector3 cameraPosition)
+        public void DrawLine(PointF start, PointF end, float lineWidth, DXColor col, Size formSize, Vector3 cameraPosition)
         {
             List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
-            
-            Vector3 vpos = vec3(start);
-            vpos.Y *= -1;
-            vpos.Z = PointRenderDepth;
-            rawVertices.Add(new VertexPositionColorTexture(vpos, col, Vector2.Zero));
 
-            Vector3 vend = vec3(end);
-            vend.Y *= -1;
-            vend.Z = PointRenderDepth;
-            rawVertices.Add(new VertexPositionColorTexture(vend, col, Vector2.Zero));
-            
-            List<int> rawIndices = new List<int>() { 0, 1 };
+            var pts = GetLineMeshPoint(start, end, lineWidth);
+            foreach (var p in pts)
+            {
+                Vector3 pos = vec3(p);
+                pos.Y *= -1;
+                pos.Z = LineRenderDepth;
+                rawVertices.Add(new VertexPositionColorTexture(pos, col, Vector2.Zero));
+            }
 
-            Draw(rawVertices, rawIndices, whitePixel, formSize, cameraPosition, PrimitiveTopology.LineList);
+            List<int> rawIndices = new List<int>() { 0, 1, 2, 2, 1, 3 };
+
+            Draw(rawVertices, rawIndices, whitePixel, formSize, cameraPosition, PrimitiveTopology.TriangleList);
         }
 
         List<PointF> GetLineMeshPoint(PointF start, PointF end, float lineWidth)
@@ -215,13 +213,7 @@ namespace PatchworkLib.PatchMesh
 
         void Draw(List<VertexPositionColorTexture> rawVertices, List<int> rawIndices, Texture2D texture, Size formSize, Vector3 cameraPosition, PrimitiveTopology primitiveType)
         {
-            var view = Matrix.LookAtLH(
-                  new Vector3(cameraPosition.X, -cameraPosition.Y, cameraPosition.Z),
-                  new Vector3(cameraPosition.X, -cameraPosition.Y, 0),
-                  Vector3.UnitY);
-            var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, formSize.Width / (float)formSize.Height, 0.1f, 10000.0f);
-            var viewProj = Matrix.Multiply(view, proj);
-            var worldViewProj = Matrix.RotationX(time) * Matrix.RotationY(time * 2) * Matrix.RotationZ(time * .7f) * viewProj;
+            var worldViewProj = CameraMatrix(formSize, cameraPosition);
             worldViewProj.Transpose();
 
             SharpDXHelper.UpdateVertexBuffer(RenderInfo, rawVertices);
@@ -234,6 +226,43 @@ namespace PatchworkLib.PatchMesh
         }
 
 
+
+
+        public Vector3 Unproject(System.Drawing.Point point, float z,Size formSize, Vector3 cameraPosition )
+        {
+            var worldViewProj = CameraMatrix(formSize, cameraPosition);
+
+            Vector3 pointNear = new Vector3(point.X, point.Y, nearClip);
+            Vector3 unprojectNear;
+            Vector3.Unproject(ref pointNear, 0, 0, formSize.Width, formSize.Height, nearClip, farClip, ref worldViewProj, out unprojectNear);
+
+            Vector3 pointFar = new Vector3(point.X, point.Y, farClip);
+            Vector3 unprojectFar;
+            Vector3.Unproject(ref pointFar, 0, 0, formSize.Width, formSize.Height, nearClip, farClip, ref worldViewProj, out unprojectFar);
+
+            Vector3 pos = unprojectNear + (unprojectFar - unprojectNear) * (z - unprojectNear.Z) / (unprojectFar.Z - unprojectNear.Z);
+            pos.Z = z;
+            pos.Y = -pos.Y;
+
+            return pos;
+        }
+
+        Matrix CameraMatrix(Size formSize, Vector3 cameraPosition)
+        {
+            var view = Matrix.LookAtLH(
+                  new Vector3(cameraPosition.X, -cameraPosition.Y, cameraPosition.Z),
+                  new Vector3(cameraPosition.X, -cameraPosition.Y, 0),
+                  Vector3.UnitY);
+            var proj = Matrix.PerspectiveFovLH((float)Math.PI / 4.0f, formSize.Width / (float)formSize.Height, nearClip,farClip);
+            var viewProj = Matrix.Multiply(view, proj);
+            // デバッグ用。ぐるぐるカメラを回転させたいとき
+            // timeは BeginDraw() でインクリメントされる
+            var worldViewProj = Matrix.RotationX(time) * Matrix.RotationY(time * 2) * Matrix.RotationZ(time * .7f) * viewProj;
+            return worldViewProj;
+        }
+
+
+
         Vector2 vec2(PointF pt)
         {
             return new Vector2(pt.X, pt.Y);
@@ -243,14 +272,6 @@ namespace PatchworkLib.PatchMesh
         {
             return new Vector3(pt.X, pt.Y, 0);
         }
-
-
-
-
-
-
-
-
 
 
 
