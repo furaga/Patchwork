@@ -16,7 +16,7 @@ namespace PatchworkLib.PatchMesh
     /// </summary>
     public class PatchSkeletalMeshRenderer
     {
-        public static Bitmap ToBitmap(PatchSkeletalMesh mesh, List<CharacterRange> sections = null)
+        public static Bitmap ToBitmap(PatchSkeletalMesh mesh, List<CharacterRange> sections = null, bool showPath = false)
         {
             int maxx = (int)mesh.mesh.vertices.Select(p => p.position.X).Max() + 1;
             int maxy = (int)mesh.mesh.vertices.Select(p => p.position.Y).Max() + 1;
@@ -58,12 +58,7 @@ namespace PatchworkLib.PatchMesh
                 // 頂点（partで色分け）
                 foreach (var v in mesh.mesh.vertices)
                     g.FillRectangle(pens[v.part % pens.Length], v.position.X - 2, v.position.Y - 2, 4, 4);
-                /*
-                // パス
-                var path = GetPath(mesh);
-                foreach (var p in path)
-                    g.FillRectangle(Brushes.Orange, p.X - 2, p.Y - 2, 4, 4);
-*/
+                
                 // 制御点
                 foreach (var c in mesh.mesh.CopyControlPoints())
                     g.FillRectangle(Brushes.Red, c.position.X - 2, c.position.Y - 2, 4, 4);
@@ -80,6 +75,13 @@ namespace PatchworkLib.PatchMesh
                             g.FillRectangle(Brushes.Blue, p.X - 2, p.Y - 2, 4, 4);
                         }
                     }
+                }
+
+                if (showPath)
+                {
+                    var path = GetPath(mesh);
+                    foreach (var p in path)
+                        g.FillRectangle(Brushes.Red, p.X - 5, p.Y - 5, 10, 10);
                 }
             }
             

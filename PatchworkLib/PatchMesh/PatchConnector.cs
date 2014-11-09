@@ -7,6 +7,11 @@ using System.Drawing;
 using FLib;
 using PatchSection = System.Drawing.CharacterRange;
 
+
+//
+// TODO: 繋げるときはいったん話してからexpandして、それからもう一回SkeletonFitting()する
+//
+
 namespace PatchworkLib.PatchMesh
 {
     /// 複数のパッチメッシュをリジッド変形可能な一つのパッチメッシュとして統合する
@@ -155,7 +160,19 @@ namespace PatchworkLib.PatchMesh
                     if (FLib.FMath.IsCrossed(p1, p2, bone.src.position, bone.dst.position))
                     {
                         section = sec;
-                        dir = (p2.X - p1.X) * (bone.dst.position.Y - bone.src.position.Y) - (p2.Y - p1.Y) * (bone.dst.position.X - bone.src.position.X);
+
+                        // 交差点からボーン方向に少し動かした点がメッシュ内か否かで切り口の向きを判定
+                        PointF crossPoint = FLib.FMath.CrossPoint(p1, p2, bone.src.position, bone.dst.position);
+                        float ratio = 1f /  FLib.FMath.Distance(bone.src.position, bone.dst.position);
+                        PointF boneDir = new PointF(bone.src.position.X - bone.dst.position.X, bone.src.position.Y - bone.dst.position.Y);
+                        float sampleX = crossPoint.X + boneDir.X * ratio;
+                        float sampleY = crossPoint.Y + boneDir.Y * ratio;
+                        bool inMesh = FLib.FMath.IsPointInPolygon(new PointF(sampleX, sampleY), GetPath(smesh).Select(v => v.position).ToList());
+                        if (inMesh)
+                            dir = -1;
+                        else
+                            dir = 1;
+
                         return true;
                     }
                 }
@@ -297,7 +314,7 @@ namespace PatchworkLib.PatchMesh
         {
             List<PatchVertex> path = new List<PatchVertex>();
             for (int i = 0; i < mesh.mesh.pathIndices.Count; i++)
-                path.Add(mesh.mesh.vertices[i]);
+                path.Add(mesh.mesh.vertices[mesh.mesh.pathIndices[i]]);
             return path;
         }
 
@@ -737,7 +754,7 @@ namespace PatchworkLib.PatchMesh
             if (path2_poststartPt == path1_preendPt)
                 dir = -1;
 
-            for (int i = path2_poststart + dir; ; i += dir)
+            for (int i = path2_start + dir; ; i += dir)
             {
                 PointF pt = vertices2[path2[FMath.Rem(i, path2.Count)]].position;
                 if (path.Contains(p2i[pt]))

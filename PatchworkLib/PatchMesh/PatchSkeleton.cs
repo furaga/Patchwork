@@ -36,11 +36,9 @@ namespace PatchworkLib.PatchMesh
             this.bones = new List<PatchSkeletonBone>();
             foreach (var b in skl.bones)
             {
-                if (!skl.joints.Contains(b.src) || !skl.joints.Contains(b.dst))
-                    continue;
-                int idx0 = skl.joints.IndexOf(b.src);
-                int idx1 = skl.joints.IndexOf(b.dst);
-                this.bones.Add(new PatchSkeletonBone(this.joints[idx0], this.joints[idx1]));
+                this.bones.Add(new PatchSkeletonBone(
+                    this.joints.First(j => j.name == b.src.name),  
+                    this.joints.First(j => j.name == b.dst.name)));
             }
         }
 
