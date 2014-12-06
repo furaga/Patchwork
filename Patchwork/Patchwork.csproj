@@ -32,6 +32,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>patchwork_icon.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="SharpDX">
       <HintPath>..\..\..\Magic2D_rev2\SharpDXTest\MyGame1\MyGame1\bin\Debug\SharpDX.dll</HintPath>
@@ -103,6 +106,9 @@
       <Project>{ef4e2902-fa7c-4abe-ac88-f7bcb4284dba}</Project>
       <Name>PatchworkLib</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="patchwork_icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

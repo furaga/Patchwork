@@ -111,23 +111,28 @@ namespace PatchworkLib.PatchMesh
 
             foreach (var bone in skl.bones)
             {
-                PatchSection sec1, sec2;
-                float dir1, dir2;
-                
+                List<PatchSection> sections1, sections2;
+                List<float> dir1, dir2;
+
                 // 各切り口がboneと交差しているか
-                if (!FindCrossingSection(smesh1, bone, out sec1, out dir1))
+                if (!FindCrossingSection(smesh1, bone, out sections1, out dir1))
                     continue;
-                if(!FindCrossingSection(smesh2, bone, out sec2, out dir2))
-                    continue;
-
-                // ２つの切り口が逆向きか
-                if (dir1 * dir2 >= 0)
+                if (!FindCrossingSection(smesh2, bone, out sections2, out dir2))
                     continue;
 
-                section1 = sec1;
-                section2 = sec2;
-                crossingBone = bone;
-                return true;
+                for (int i = 0; i < sections1.Count; i++)
+                {
+                    for (int j = 0; j < sections2.Count; j++)
+                    {
+                       // ２つの切り口が逆向きか
+                        if (dir1[i] * dir2[j] >= 0)
+                            continue;
+                        section1 = sections1[i];
+                        section2 = sections2[j];
+                        crossingBone = bone;
+                        return true;
+                    }
+                }
             }
 
             return false;
@@ -137,10 +142,10 @@ namespace PatchworkLib.PatchMesh
         /// meshのboneと交差している切り口を1つ返す
         /// dir は交差の仕方。切り口の逆なら符号の異なる値を返す
         /// </summary>
-        static bool FindCrossingSection(PatchSkeletalMesh smesh,  PatchSkeletonBone refBone,  out PatchSection section, out float dir)
+        static bool FindCrossingSection(PatchSkeletalMesh smesh, PatchSkeletonBone refBone, out List<PatchSection> sections, out List<float> dirs)
         {
-            section = new PatchSection(0, -1);
-            dir = 0;
+            sections = new List<PatchSection>();
+            dirs = new List<float>();
 
             // _boneに対応するmesh.skl内のボーンを探す
             PatchSkeletonBone bone = null;
@@ -150,7 +155,7 @@ namespace PatchworkLib.PatchMesh
 
             if (bone == null)
                 return false;
-
+            
             foreach (var sec in smesh.sections)
             {
                 for (int i = sec.First; i < sec.First + sec.Length - 1; i++)
@@ -159,7 +164,7 @@ namespace PatchworkLib.PatchMesh
                     var p2 = smesh.mesh.vertices[smesh.mesh.pathIndices[i + 1]].position;
                     if (FLib.FMath.IsCrossed(p1, p2, bone.src.position, bone.dst.position))
                     {
-                        section = sec;
+                        sections.Add(sec);
 
                         // 交差点からボーン方向に少し動かした点がメッシュ内か否かで切り口の向きを判定
                         PointF crossPoint = FLib.FMath.CrossPoint(p1, p2, bone.src.position, bone.dst.position);
@@ -169,14 +174,20 @@ namespace PatchworkLib.PatchMesh
                         float sampleY = crossPoint.Y + boneDir.Y * ratio;
                         bool inMesh = FLib.FMath.IsPointInPolygon(new PointF(sampleX, sampleY), GetPath(smesh).Select(v => v.position).ToList());
                         if (inMesh)
-                            dir = -1;
+                        {
+                            dirs.Add(-1);
+                        }
                         else
-                            dir = 1;
-
-                        return true;
+                        {
+                            dirs.Add(1);
+                        }
                     }
                 }
             }
+
+            if (sections.Count >= 1)
+                return true;
+
             return false;
         }
 
@@ -598,7 +609,8 @@ namespace PatchworkLib.PatchMesh
             List<PatchSection> sections = CombineSections(
                 smesh1.sections, smesh2.sections, 
                 section1, section2, 
-                smesh1.mesh.vertices, smesh2.mesh.vertices, 
+                smesh1.mesh.vertices, smesh2.mesh.vertices,
+                smesh1.Mesh.pathIndices, smesh2.Mesh.pathIndices,
                 path, p2i);
 
             //
@@ -810,44 +822,66 @@ namespace PatchworkLib.PatchMesh
 
         private static List<PatchSection> CombineSections(
             List<PatchSection> sections1, List<PatchSection> sections2,
-            PatchSection section1, PatchSection section2,
+            PatchSection exceptSection1, PatchSection exceptSection2,
             List<PatchVertex> vertices1, List<PatchVertex> vertices2,
-            List<int> path,
+            List<int> path1, List<int> path2,
+            List<int> combinedPath,
             Dictionary<PointF, int> p2i)
         {
             List<PatchSection> sections = new List<PatchSection>();
             foreach (var sec in sections1)
             {
-                if (sec == section1)
+                if (sec == exceptSection1)
                     continue;
 
                 // 切り口の端点が新しいメッシュ内でどこにあるか
-                PointF p0 = vertices1[FMath.Rem(sec.First, vertices1.Count)].position;
-                int newIdx0 = p2i[p0];
-                PointF p1 = vertices1[FMath.Rem(sec.First + sec.Length - 1, vertices1.Count)].position;
-                int newIdx1 = p2i[p1];
+                sections.Add(GetMappedSection(sec, vertices1, path1, combinedPath, p2i));
+/*
+                PointF p0 = vertices1[FMath.Rem(path1[sec.First], vertices1.Count)].position;
+                int newIdx0 = combinedPath.IndexOf(p2i[p0]);
+                PointF p1 = vertices1[FMath.Rem(path1[sec.First + sec.Length - 1, vertices1.Count)].position;
+                int newIdx1 = combinedPath.IndexOf(p2i[p1]);
                 if (newIdx0 > newIdx1)
                     FMath.Swap(ref newIdx0, ref newIdx1);
                 PatchSection newSection = new PatchSection(newIdx0, newIdx1 - newIdx0 + 1);
                 sections.Add(newSection);
-            }
+  */          }
             foreach (var sec in sections2)
             {
-                if (sec == section2)
+                if (sec == exceptSection2)
                     continue;
 
                 // 切り口の端点が新しいメッシュ内でどこにあるか
-                PointF p0 = vertices2[FMath.Rem(sec.First, vertices2.Count)].position;
-                int newIdx0 = path.IndexOf(p2i[p0]);
+                sections.Add(GetMappedSection(sec, vertices2, path2, combinedPath, p2i));
+/*                PointF p0 = vertices2[FMath.Rem(sec.First, vertices2.Count)].position;
+                int newIdx0 = combinedPath.IndexOf(p2i[p0]);
                 PointF p1 = vertices2[FMath.Rem(sec.First + sec.Length - 1, vertices2.Count)].position;
-                int newIdx1 = path.IndexOf(p2i[p1]);
+                int newIdx1 = combinedPath.IndexOf(p2i[p1]);
                 if (newIdx0 > newIdx1)
                     FMath.Swap(ref newIdx0, ref newIdx1);
 
                 PatchSection newSection = new PatchSection(newIdx0, newIdx1 - newIdx0 + 1);
                 sections.Add(newSection);
-            }
+  */          }
             return sections;
+        }
+
+        static PatchSection GetMappedSection(PatchSection orgsection, List<PatchVertex> vertices, List<int> orgpath, List<int> combinedPath, Dictionary<PointF, int> p2i)
+        {
+            int idx0 = orgpath[FMath.Rem(orgsection.First, orgpath.Count)];
+            PointF p0 = vertices[idx0].position;
+            int newIdx0 = combinedPath.IndexOf(p2i[p0]);
+
+            int idx1 = orgpath[FMath.Rem(orgsection.First + orgsection.Length - 1, orgpath.Count)];
+            PointF p1 = vertices[idx1].position;
+            int newIdx1 = combinedPath.IndexOf(p2i[p1]);
+
+            if (newIdx0 > newIdx1)
+                FMath.Swap(ref newIdx0, ref newIdx1);
+
+            PatchSection newSection = new PatchSection(newIdx0, newIdx1 - newIdx0 + 1);
+
+            return newSection;
         }
 
 

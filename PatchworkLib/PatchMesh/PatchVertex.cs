@@ -43,8 +43,8 @@ namespace PatchworkLib.PatchMesh
 
         public PatchVertex(PatchVertex v)
         {
-            this.position = v.orgPosition;
-            this.orgPosition = v.position;
+            this.position = v.position;
+            this.orgPosition = v.orgPosition;
             this.part = v.part;
             this.texcoordDict = new Dictionary<string, PointF>(v.texcoordDict);
         }
@@ -59,6 +59,12 @@ namespace PatchworkLib.PatchMesh
         public Dictionary<string, PointF> CopyTexcoordDict()
         {
             return new Dictionary<string, PointF>(texcoordDict);
+        }
+
+        internal void ScaleByRatio(float rx, float ry)
+        {
+            position = new PointF(position.X * rx, position.Y * ry);
+            orgPosition = new PointF(orgPosition.X * rx, orgPosition.Y * ry);
         }
     }
 }

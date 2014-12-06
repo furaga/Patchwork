@@ -14,7 +14,7 @@ namespace PatchworkLib.PatchMesh
     public class PatchControlPoint
     {
         public PointF position;
-        public readonly PointF orgPosition;
+        public PointF orgPosition;
         public readonly int part;
 
         public PatchControlPoint(PointF orgPoint, int part)
@@ -30,5 +30,11 @@ namespace PatchworkLib.PatchMesh
             this.part = c.part;
         }
 
+
+        internal void ScaleByRatio(float rx, float ry)
+        {
+            position = new PointF(position.X * rx, position.Y * ry);
+            orgPosition = new PointF(orgPosition.X * rx, orgPosition.Y * ry);
+        }
     }
 }

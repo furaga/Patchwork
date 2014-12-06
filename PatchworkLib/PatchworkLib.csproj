@@ -66,6 +66,7 @@
     <Compile Include="Magic2DAdopters\Segmentation.cs" />
     <Compile Include="PatchMesh\PatchControlPoint.cs" />
     <Compile Include="PatchMesh\PatchMesh.cs" />
+    <Compile Include="PatchMesh\PatchMeshCollision.cs" />
     <Compile Include="PatchMesh\PatchMeshRenderer.cs" />
     <Compile Include="PatchMesh\PatchMeshRenderResources.cs" />
     <Compile Include="PatchMesh\PatchSkeletalMesh.cs" />

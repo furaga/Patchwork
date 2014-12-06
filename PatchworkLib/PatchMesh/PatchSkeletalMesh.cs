@@ -21,26 +21,31 @@ namespace PatchworkLib.PatchMesh
         internal List<PatchSection> sections = new List<PatchSection>();
         internal Dictionary<PatchSkeletonBone, List<PointF>> skeletalControlPointDict = new Dictionary<PatchSkeletonBone, List<PointF>>();
 
+        private PointF scale = new PointF(1,1);
+
         // コピーせずに参照をそのまま格納する
-        public PatchSkeletalMesh(PatchMesh mesh, PatchSkeleton skl, List<PatchSection> sections)
+        public PatchSkeletalMesh(PatchMesh mesh, PatchSkeleton skl, List<PatchSection> sections, bool setSkeletalControlPoints = true)
         {
             this.mesh = mesh;
             this.skl = skl;
             this.sections = new List<PatchSection>(sections);
-            this.skeletalControlPointDict = CreateSkeletalControlPoints(skl, 30);
+            this.skeletalControlPointDict = CreateSkeletalControlPoints(skl, 20);
 
             // 既存の制御点を消して、スケルトン周りの制御点を追加
-            this.mesh.ClearControlPoints();
-            foreach (var ls in this.skeletalControlPointDict.Values)
-                foreach (var pt in ls)
-                    this.mesh.AddControlPoint(pt, pt);
+            if (setSkeletalControlPoints)
+            {
+                this.mesh.ClearControlPoints();
+                foreach (var ls in this.skeletalControlPointDict.Values)
+                    foreach (var pt in ls)
+                        this.mesh.AddControlPoint(pt, pt);
+            }
         }
 
         public static PatchSkeletalMesh Copy(PatchSkeletalMesh org)
         {
             var m = PatchMesh.Copy(org.mesh);
             var s = PatchSkeleton.Copy(org.skl);
-            PatchSkeletalMesh copy = new PatchSkeletalMesh(m, s, org.sections);
+            PatchSkeletalMesh copy = new PatchSkeletalMesh(m, s, org.sections, false);
             return copy;
         }
 
@@ -71,6 +76,45 @@ namespace PatchworkLib.PatchMesh
                 }
             }
             return dict;
+        }
+
+        /// <summary>
+        /// メッシュを拡大する。拡大後の拡大率で指定
+        /// </summary>
+        public void Scale(float sx, float sy)
+        {
+            if (Math.Abs(sx) <= 1e-4 || Math.Abs(sx) <= 1e-4)
+                throw new Exception(string.Format("Scale: |sx| (={0}) and |sy| (={1}) cannot be less than 1e-4", Math.Abs(sx), Math.Abs(sy)));
+            
+            ScaleByRatio(sx / scale.X, sy / scale.Y);
+        }
+
+        /// <summary>
+        /// メッシュを拡大する。現在のscale値の何倍するかで指定
+        /// </summary>
+        public void ScaleByRatio(float rx, float ry)
+        {
+            if (rx <= 0 || ry <= 0)
+                throw new Exception(string.Format("ScaleByRatio: rx (={0}) and ry (={1}) cannot be less than 0", rx, ry));
+
+            scale.X *= rx;
+            scale.Y *= ry;
+
+            // メッシュ・スケルトン・ボーン（と制御点）を(rx, ry)倍する
+            mesh.ScaleByRatio(rx, ry);
+            skl.ScaleByRatio(rx, ry);
+
+            foreach (var kv in skeletalControlPointDict)
+            {
+                PatchSkeletonBone b = kv.Key;
+                b.src.position = new PointF(b.src.position.X * rx, b.src.position.Y * ry);
+                b.dst.position = new PointF(b.dst.position.X * rx, b.dst.position.Y * ry);
+
+                List<PointF> ls = kv.Value;
+                for (int i = 0; i < ls.Count; i++)
+                    ls[i] = new PointF(ls[i].X * rx, ls[i].Y * ry);
+            }
+
         }
 
     }

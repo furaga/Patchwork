@@ -16,12 +16,24 @@ namespace PatchworkLib.PatchMesh
     /// </summary>
     public class PatchSkeletalMeshRenderer
     {
-        public static Bitmap ToBitmap(PatchSkeletalMesh mesh, List<CharacterRange> sections = null, bool showPath = false)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="mesh"></param>
+        /// <param name="sections"></param>
+        /// <param name="showPath"></param>
+        /// <param name="alignment">描画画像がかならず画面の左上に来るように配置をずらすか</param>
+        /// <returns></returns>
+        public static Bitmap ToBitmap(PatchSkeletalMesh mesh, List<CharacterRange> sections = null, bool showPath = false, bool alignment = false)
         {
             int maxx = (int)mesh.mesh.vertices.Select(p => p.position.X).Max() + 1;
             int maxy = (int)mesh.mesh.vertices.Select(p => p.position.Y).Max() + 1;
             if (maxx <= 0 || maxy <= 0)
                 return null;
+
+            int minx = (int)mesh.mesh.vertices.Select(p => p.position.X).Min() - 1;
+            int miny = (int)mesh.mesh.vertices.Select(p => p.position.Y).Min() - 1;
+            PointF offset = alignment ? new PointF(-minx, -miny) : PointF.Empty;
 
 
             maxx = 800;
@@ -52,16 +64,21 @@ namespace PatchworkLib.PatchMesh
                     PointF pt1 = mesh.mesh.vertices[t.Idx1].position;
                     PointF pt2 = mesh.mesh.vertices[t.Idx2].position;
 
-                    g.DrawLines(pen, new PointF[] { pt0, pt1, pt2, pt0 });
+                    g.DrawLines(pen, new PointF[] { 
+                        Offset(pt0, offset),
+                        Offset(pt1, offset),
+                        Offset(pt2, offset),
+                        Offset(pt0, offset)
+                    });
                 }
                 
                 // 頂点（partで色分け）
                 foreach (var v in mesh.mesh.vertices)
-                    g.FillRectangle(pens[v.part % pens.Length], v.position.X - 2, v.position.Y - 2, 4, 4);
+                    g.FillRectangle(pens[v.part % pens.Length], v.position.X - 2 + offset.X, v.position.Y - 2 + offset.Y, 4, 4);
                 
                 // 制御点
                 foreach (var c in mesh.mesh.CopyControlPoints())
-                    g.FillRectangle(Brushes.Red, c.position.X - 2, c.position.Y - 2, 4, 4);
+                    g.FillRectangle(Brushes.Red, c.position.X - 2 + offset.X, c.position.Y - 2 + offset.Y, 4, 4);
 
                 // 切り口
                 if (sections != null)
@@ -72,7 +89,7 @@ namespace PatchworkLib.PatchMesh
                         {
                             int idx = mesh.mesh.pathIndices[FLib.FMath.Rem(i, mesh.mesh.pathIndices.Count)];
                             PointF p = mesh.mesh.vertices[idx].position;
-                            g.FillRectangle(Brushes.Blue, p.X - 2, p.Y - 2, 4, 4);
+                            g.FillRectangle(Brushes.Blue, p.X - 2 + offset.X, p.Y - 2 + offset.Y, 4, 4);
                         }
                     }
                 }
@@ -81,7 +98,7 @@ namespace PatchworkLib.PatchMesh
                 {
                     var path = GetPath(mesh);
                     foreach (var p in path)
-                        g.FillRectangle(Brushes.Red, p.X - 5, p.Y - 5, 10, 10);
+                        g.FillRectangle(Brushes.Red, p.X - 5 + offset.X, p.Y - 5 + offset.Y, 10, 10);
                 }
             }
             
@@ -93,6 +110,11 @@ namespace PatchworkLib.PatchMesh
             foreach (var i in mesh.mesh.pathIndices)
                 path.Add(mesh.mesh.vertices[i].position);
             return path;
+        }
+
+        static PointF Offset(PointF pt, PointF offset)
+        {
+            return new PointF(pt.X + offset.X, pt.Y + offset.Y);
         }
     }
 }

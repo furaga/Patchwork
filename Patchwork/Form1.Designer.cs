@@ -32,35 +32,49 @@
             this.menuStrip = new System.Windows.Forms.MenuStrip();
             this.fileFToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.openOToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.patchPToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.combineCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteDToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.patchView = new System.Windows.Forms.ListView();
             this.patchImageList = new System.Windows.Forms.ImageList(this.components);
+            this.splitContainer2 = new System.Windows.Forms.SplitContainer();
+            this.label1 = new System.Windows.Forms.Label();
+            this.scaleSlider = new System.Windows.Forms.TrackBar();
             this.canvas = new System.Windows.Forms.PictureBox();
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.timer = new System.Windows.Forms.Timer(this.components);
+            this.saveSToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).BeginInit();
+            this.splitContainer2.Panel1.SuspendLayout();
+            this.splitContainer2.Panel2.SuspendLayout();
+            this.splitContainer2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.scaleSlider)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.canvas)).BeginInit();
             this.SuspendLayout();
             // 
             // menuStrip
             // 
             this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.fileFToolStripMenuItem});
+            this.fileFToolStripMenuItem,
+            this.patchPToolStripMenuItem});
             this.menuStrip.Location = new System.Drawing.Point(0, 0);
             this.menuStrip.Name = "menuStrip";
-            this.menuStrip.Size = new System.Drawing.Size(710, 24);
+            this.menuStrip.Size = new System.Drawing.Size(823, 24);
             this.menuStrip.TabIndex = 0;
             this.menuStrip.Text = "menuStrip1";
             // 
             // fileFToolStripMenuItem
             // 
             this.fileFToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.openOToolStripMenuItem});
+            this.openOToolStripMenuItem,
+            this.saveSToolStripMenuItem});
             this.fileFToolStripMenuItem.Name = "fileFToolStripMenuItem";
             this.fileFToolStripMenuItem.Size = new System.Drawing.Size(56, 20);
             this.fileFToolStripMenuItem.Text = "File(&F)";
@@ -68,8 +82,35 @@
             // openOToolStripMenuItem
             // 
             this.openOToolStripMenuItem.Name = "openOToolStripMenuItem";
-            this.openOToolStripMenuItem.Size = new System.Drawing.Size(123, 22);
+            this.openOToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
+            this.openOToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
             this.openOToolStripMenuItem.Text = "Open(&O)";
+            this.openOToolStripMenuItem.Click += new System.EventHandler(this.openOToolStripMenuItem_Click);
+            // 
+            // patchPToolStripMenuItem
+            // 
+            this.patchPToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.combineCToolStripMenuItem,
+            this.deleteDToolStripMenuItem});
+            this.patchPToolStripMenuItem.Name = "patchPToolStripMenuItem";
+            this.patchPToolStripMenuItem.Size = new System.Drawing.Size(72, 20);
+            this.patchPToolStripMenuItem.Text = "Patch (&P)";
+            // 
+            // combineCToolStripMenuItem
+            // 
+            this.combineCToolStripMenuItem.Name = "combineCToolStripMenuItem";
+            this.combineCToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.F5;
+            this.combineCToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.combineCToolStripMenuItem.Text = "Combine(&C)";
+            this.combineCToolStripMenuItem.Click += new System.EventHandler(this.combineCToolStripMenuItem_Click);
+            // 
+            // deleteDToolStripMenuItem
+            // 
+            this.deleteDToolStripMenuItem.Name = "deleteDToolStripMenuItem";
+            this.deleteDToolStripMenuItem.ShortcutKeys = System.Windows.Forms.Keys.Delete;
+            this.deleteDToolStripMenuItem.Size = new System.Drawing.Size(164, 22);
+            this.deleteDToolStripMenuItem.Text = "Delete(&D)";
+            this.deleteDToolStripMenuItem.Click += new System.EventHandler(this.deleteDToolStripMenuItem_Click);
             // 
             // splitContainer1
             // 
@@ -83,9 +124,9 @@
             // 
             // splitContainer1.Panel2
             // 
-            this.splitContainer1.Panel2.Controls.Add(this.canvas);
-            this.splitContainer1.Size = new System.Drawing.Size(710, 467);
-            this.splitContainer1.SplitterDistance = 236;
+            this.splitContainer1.Panel2.Controls.Add(this.splitContainer2);
+            this.splitContainer1.Size = new System.Drawing.Size(823, 467);
+            this.splitContainer1.SplitterDistance = 273;
             this.splitContainer1.TabIndex = 1;
             // 
             // patchView
@@ -95,7 +136,7 @@
             this.patchView.LargeImageList = this.patchImageList;
             this.patchView.Location = new System.Drawing.Point(0, 0);
             this.patchView.Name = "patchView";
-            this.patchView.Size = new System.Drawing.Size(236, 467);
+            this.patchView.Size = new System.Drawing.Size(273, 467);
             this.patchView.SmallImageList = this.patchImageList;
             this.patchView.TabIndex = 0;
             this.patchView.UseCompatibleStateImageBehavior = false;
@@ -109,12 +150,52 @@
             this.patchImageList.ImageSize = new System.Drawing.Size(100, 100);
             this.patchImageList.TransparentColor = System.Drawing.Color.Transparent;
             // 
+            // splitContainer2
+            // 
+            this.splitContainer2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainer2.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
+            this.splitContainer2.Location = new System.Drawing.Point(0, 0);
+            this.splitContainer2.Name = "splitContainer2";
+            this.splitContainer2.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // splitContainer2.Panel1
+            // 
+            this.splitContainer2.Panel1.Controls.Add(this.label1);
+            this.splitContainer2.Panel1.Controls.Add(this.scaleSlider);
+            // 
+            // splitContainer2.Panel2
+            // 
+            this.splitContainer2.Panel2.Controls.Add(this.canvas);
+            this.splitContainer2.Size = new System.Drawing.Size(546, 467);
+            this.splitContainer2.SplitterDistance = 59;
+            this.splitContainer2.TabIndex = 1;
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("MS UI Gothic", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label1.Location = new System.Drawing.Point(3, 3);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(45, 16);
+            this.label1.TabIndex = 1;
+            this.label1.Text = "Scale";
+            // 
+            // scaleSlider
+            // 
+            this.scaleSlider.Location = new System.Drawing.Point(54, 3);
+            this.scaleSlider.Maximum = 100;
+            this.scaleSlider.Name = "scaleSlider";
+            this.scaleSlider.Size = new System.Drawing.Size(404, 45);
+            this.scaleSlider.TabIndex = 0;
+            this.scaleSlider.Value = 10;
+            this.scaleSlider.Scroll += new System.EventHandler(this.scaleSlider_Scroll);
+            // 
             // canvas
             // 
             this.canvas.Dock = System.Windows.Forms.DockStyle.Fill;
             this.canvas.Location = new System.Drawing.Point(0, 0);
             this.canvas.Name = "canvas";
-            this.canvas.Size = new System.Drawing.Size(470, 467);
+            this.canvas.Size = new System.Drawing.Size(546, 404);
             this.canvas.TabIndex = 0;
             this.canvas.TabStop = false;
             this.canvas.DragDrop += new System.Windows.Forms.DragEventHandler(this.canvas_DragDrop);
@@ -134,16 +215,25 @@
             this.timer.Interval = 10;
             this.timer.Tick += new System.EventHandler(this.timer_Tick);
             // 
+            // saveSToolStripMenuItem
+            // 
+            this.saveSToolStripMenuItem.Name = "saveSToolStripMenuItem";
+            this.saveSToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.S)));
+            this.saveSToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.saveSToolStripMenuItem.Text = "Save (&S)";
+            this.saveSToolStripMenuItem.Click += new System.EventHandler(this.saveSToolStripMenuItem_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(710, 491);
+            this.ClientSize = new System.Drawing.Size(823, 491);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip);
             this.MainMenuStrip = this.menuStrip;
             this.Name = "Form1";
             this.Text = "Form1";
+            this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.Form1_Load);
             this.menuStrip.ResumeLayout(false);
             this.menuStrip.PerformLayout();
@@ -151,6 +241,12 @@
             this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
+            this.splitContainer2.Panel1.ResumeLayout(false);
+            this.splitContainer2.Panel1.PerformLayout();
+            this.splitContainer2.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).EndInit();
+            this.splitContainer2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.scaleSlider)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.canvas)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -169,6 +265,13 @@
         private System.Windows.Forms.SaveFileDialog saveFileDialog;
         private System.Windows.Forms.OpenFileDialog openFileDialog;
         private System.Windows.Forms.Timer timer;
+        private System.Windows.Forms.ToolStripMenuItem patchPToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem combineCToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem deleteDToolStripMenuItem;
+        private System.Windows.Forms.SplitContainer splitContainer2;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.TrackBar scaleSlider;
+        private System.Windows.Forms.ToolStripMenuItem saveSToolStripMenuItem;
     }
 }
 

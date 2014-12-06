@@ -12,11 +12,12 @@ using FLib;
 
 namespace PatchworkLib.ARAPDeformation
 {
-    class ARAPDeformation
+    public class ARAPDeformation
     {
         List<PointF> meshPointList = new List<PointF>();
         List<PointF> orgMeshPointList = new List<PointF>();
         List<int> meshPtToPart = new List<int>();
+        List<int> meshPartToVPart = new List<int>();
 
         List<PointF> controls = new List<PointF>();
         List<PointF> orgControls = new List<PointF>();
@@ -69,62 +70,7 @@ namespace PatchworkLib.ARAPDeformation
 
             for (int i = 0; i < controls.Count; i++)
                 controls[i] = pts[i];
-        }
-        /*
-        public void ClearControlPoints()
-        {
-            controls.Clear();
-            controlsToPart.Clear();
-            orgControls.Clear();
-            weights = A00 = A01 = A10 = A11 = null;
-            D = null;
-        }
-
-        public bool AddControlPoint(PointF pt, PointF orgPt, out int part)
-        {
-            part = -1;
-            if (controls.Contains(pt))
-                return false;
-
-            controls.Add(pt);
-            orgControls.Add(orgPt);
-
-            int minIdx;
-            FMath.GetMinElement(meshPointList, p => FMath.SqDistance(p, orgPt), out minIdx);
-
-            if (minIdx >= 0)
-                part = meshPtToPart[minIdx];
-            else
-                part = -1;
-
-            controlsToPart.Add(part);
-
-            return true;
-        }
-
-        public int  RemoveControlPoint(PointF pt)
-        {
-            if (controls.Contains(pt))
-            {
-                int idx = controls.IndexOf(pt);
-                orgControls.RemoveAt(idx);
-                controls.Remove(pt);
-                return idx;
-            }
-            return -1;
-        }
-
-        public int TranslateControlPoint(PointF pt, PointF to, bool flush)
-        {
-            if (!controls.Contains(pt))
-                return - 1;
-            int idx = controls.IndexOf(pt);
-            controls[idx] = to;
-            if (flush)
-                FlushDefomation();
-            return idx;
-        }
-         * */
+                    }
 
         public void FlushDefomation()
         {
@@ -146,22 +92,88 @@ namespace PatchworkLib.ARAPDeformation
             D = null;
         }
 
+        public void BalancePartCount(Dictionary<int, List<int>> edges)
+        {
+            meshPartToVPart = BalancePartCount(meshPtToPart, controlsToPart, edges);
+
+            meshPtToPart = meshPartToVPart;
+
+        }
+
+        // TODO: 制御点のpartの種類に応じてmeshpointsのpartを変える
+        // 内部的にはmeshPtToPart[v]から目的のpartへの写像meshPartToVPart[p]を決める
+        public static List<int> BalancePartCount(List<int> parts, List<int> cparts, Dictionary<int, List<int>> edges)
+        {
+            List<int> vparts = parts.ToList();
+
+            HashSet<int> rparts = new HashSet<int>();
+            Dictionary<int, List<int>> partToMeshPoint = new Dictionary<int,List<int>>();
+
+            // 消すべきpartの集合rpartsを計算
+            foreach (var p in parts)
+                rparts.Add(p);
+            foreach (var p in cparts)
+                rparts.Remove(p);
+
+            // 各partを持つ頂点を探す
+            for (int i = 0; i  <parts.Count; i++)
+            {
+                if (!partToMeshPoint.ContainsKey(parts[i]))
+                    partToMeshPoint[parts[i]] = new List<int>();
+                partToMeshPoint[parts[i]].Add(i);
+            }
+
+            while (true)
+            {
+                int diffCount = 0;
+                // 消すべきパートについて
+                foreach (var part in rparts)
+                {
+                    // そのパートを持つ各頂点について
+                    foreach (int i in partToMeshPoint[part])
+                    {
+                        // 代入済みなら飛ばす
+                        if (vparts[i] != parts[i])
+                            continue;
+
+                        // 隣接点がvalidなpartだったらそれを代入
+                        var neighbors = edges[i];
+                        foreach (int j in neighbors)
+                        {
+                            if (rparts.Contains(vparts[j]))
+                                ;
+                            else
+                            {
+                                vparts[i] = vparts[j];
+                                diffCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (diffCount <= 0)
+                    break;
+            }
+
+            return vparts;
+        }
+
         void Precompute()
         {
-            if (controls.Count < 3)
+            if (orgControls.Count < 3)
                 return;
 
-            weights = new float[meshPointList.Count * controls.Count];
-            A00 = new float[meshPointList.Count * controls.Count];
-            A01 = new float[meshPointList.Count * controls.Count];
-            A10 = new float[meshPointList.Count * controls.Count];
-            A11 = new float[meshPointList.Count * controls.Count];
+            weights = new float[meshPointList.Count * orgControls.Count];
+            A00 = new float[meshPointList.Count * orgControls.Count];
+            A01 = new float[meshPointList.Count * orgControls.Count];
+            A10 = new float[meshPointList.Count * orgControls.Count];
+            A11 = new float[meshPointList.Count * orgControls.Count];
             D = new PointF[meshPointList.Count];
 
             for (int vIdx = 0; vIdx < meshPointList.Count; vIdx++)
             {
-                int offset = vIdx * controls.Count;
-                for (int i = 0; i < controls.Count; i++)
+                int offset = vIdx * orgControls.Count;
+                for (int i = 0; i < orgControls.Count; i++)
                 {
                     if (meshPtToPart[vIdx] == controlsToPart[i])
                     {
@@ -179,7 +191,7 @@ namespace PatchworkLib.ARAPDeformation
 
                 // 追加　2014/11/08
                 int nonzeroCnt = 0;
-                for (int i = 0; i < controls.Count; i++)
+                for (int i = 0; i < orgControls.Count; i++)
                     if (weights[i + offset] != 0)
                         nonzeroCnt++;
                 if (nonzeroCnt <= 1)
@@ -203,13 +215,13 @@ namespace PatchworkLib.ARAPDeformation
                 }
 
                 float mu = 0;
-                for (int i = 0; i < controls.Count; i++)
+                for (int i = 0; i < orgControls.Count; i++)
                     mu += (float)(Ph[i].X * Ph[i].X + Ph[i].Y * Ph[i].Y) * weights[i + offset];
 
 
                 D[vIdx].X = orgMeshPointList[vIdx].X - Pa.Value.X;
                 D[vIdx].Y = orgMeshPointList[vIdx].Y - Pa.Value.Y;
-                for (int i = 0; i < controls.Count; i++)
+                for (int i = 0; i < orgControls.Count; i++)
                 {
                     int idx = i + offset;
                     A00[idx] = weights[idx] / mu * (Ph[i].X * D[vIdx].X + Ph[i].Y * D[vIdx].Y);
@@ -386,6 +398,25 @@ namespace PatchworkLib.ARAPDeformation
             return newPts;
         }
 
+        /// <summary>
+        /// メッシュ・制御点をrx, ry倍する。
+        /// PatchMesh.csで１からarapを作りなおしても良いが、事前計算に時間がかかるのでしない
+        /// </summary>
+        /// <param name="rx"></param>
+        /// <param name="ry"></param>
+        internal void ScaleByRatio(float rx, float ry)
+        {
+            for (int i = 0; i < meshPointList.Count; i++)
+                meshPointList[i] = new PointF(meshPointList[i].X * rx, meshPointList[i].Y * ry);
 
+            for (int i = 0; i < orgMeshPointList.Count; i++)
+                orgMeshPointList[i] = new PointF(orgMeshPointList[i].X * rx, orgMeshPointList[i].Y * ry);
+
+            for (int i = 0; i < controls.Count; i++)
+                controls[i] = new PointF(controls[i].X * rx, controls[i].Y * ry);
+
+            for (int i = 0; i < orgControls.Count; i++)
+                orgControls[i] = new PointF(orgControls[i].X * rx, orgControls[i].Y * ry);
+        }
     }
 }

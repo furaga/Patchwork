@@ -84,5 +84,32 @@ namespace PatchworkLib.PatchMesh
                 foreach (var kv in textureDict)
                     kv.Value.Dispose();
         }
+
+        public void DuplicateResources(PatchMesh from, PatchMesh to)
+        {
+            string prefix_from = from.Id + ":";
+            string prefix_to = to.Id + ":";
+            var keys = textureDict.Keys.Where(k => k.StartsWith(prefix_from)).ToList();
+            foreach (var k in keys)
+            {
+                var newKey = prefix_to + k.Substring(prefix_from.Length);
+                textureDict[newKey] = textureDict[k];
+            }
+        }
+
+        public void RemoveResources(PatchMesh m)
+        {
+            string prefix = m.Id + ":";
+            var keys = textureDict.Keys.Where(k => k.StartsWith(prefix)).ToList();
+            foreach (var k in keys)
+                textureDict.Remove(k);
+        }
+
+        public Dictionary<string, Texture2D> CopyTextureDict()
+        {
+            var dict = textureDict.ToDictionary(kv => kv.Key, kv => kv.Value);
+            return dict;
+        }
+
     }
 }

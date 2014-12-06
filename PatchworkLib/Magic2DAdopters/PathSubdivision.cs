@@ -79,6 +79,7 @@ namespace Magic2D
             return divPath;
         }
 
+        // TODO: 直線ではなくスプライン曲線上で保管する。そうしないと画像がかくかくした見た目になる
         static List<PointF> SubdivideSegment(PointF p1, PointF p2, float course)
         {
             if (course <= 0)

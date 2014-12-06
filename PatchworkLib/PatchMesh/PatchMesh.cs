@@ -79,6 +79,7 @@ namespace PatchworkLib.PatchMesh
             arap = new ARAPDeform(rawVertices, vert2part);
             foreach (var c in controls)
                 AddControlPoint(c.position, c.orgPosition);
+
         }
 
         internal static PatchMesh Copy(PatchMesh mesh)
@@ -148,37 +149,7 @@ namespace PatchworkLib.PatchMesh
                     FlushDefomation();
             }
         }
-
-        /*        public void AddControlPoint(PointF controlPoint, PointF orgControlPoint)
-                {
-                    int part;
-                    bool succeed = arap.AddControlPoint(controlPoint, orgControlPoint, out part);
-                    if (succeed)
-                    {
-                        var c = new PatchControlPoint(orgControlPoint, part);
-                        c.position = controlPoint;
-                        controlPoints.Add(c);
-                    }
-                }
-
-                public void RemoveControlPoint(PointF pt)
-                {
-                    int idx = arap.RemoveControlPoint(pt);
-                    if (idx >= 0)
-                       controlPoints.RemoveAt(idx);
-                }
-
-                public void TranslateControlPoint(PointF pt, PointF to, bool flush)
-                {
-                    int idx = arap.TranslateControlPoint(pt, to, flush);
-                    if (idx >= 0)
-                        controlPoints[idx].position = to;
-
-                    if (flush)
-                        FlushDefomation();
-                }
-                */
-
+        
         internal PatchControlPoint FindControlPoint(PointF orgPosition)
         {
             foreach (var c in controlPoints)
@@ -204,12 +175,37 @@ namespace PatchworkLib.PatchMesh
         public void BeginDeformation()
         {
             // 制御点をPatchMesh, ARAPで同期させる
-
             arap.ClearControlPoints();
             foreach (var c in controlPoints)
                 arap.AddControlPoint(c.position, c.orgPosition, c.part);
 
+            BalancePartCount();
+
             arap.BeginDeformation();
+        }
+
+        // TODO: 制御点のpartの種類に応じてmeshpointsのpartを変える
+        // 内部的にはmeshPtToPart[v]から目的のpartへの写像meshPartToVPart[p]を決める
+        void BalancePartCount()
+        {
+            Dictionary<int, List<int>> edges = new Dictionary<int,List<int>>();
+            foreach (var t in triangles)
+            {
+                if (!edges.ContainsKey(t.Idx0))
+                    edges[t.Idx0] = new List<int>();
+                if (!edges.ContainsKey(t.Idx1))
+                    edges[t.Idx1] = new List<int>();
+                if (!edges.ContainsKey(t.Idx2))
+                    edges[t.Idx2] = new List<int>();
+
+                edges[t.Idx0].Add(t.Idx1);
+                edges[t.Idx0].Add(t.Idx2);
+                edges[t.Idx1].Add(t.Idx0);
+                edges[t.Idx1].Add(t.Idx2);
+                edges[t.Idx2].Add(t.Idx0);
+                edges[t.Idx2].Add(t.Idx1);
+            }
+            arap.BalancePartCount(edges);
         }
 
         public void EndDeformation()
@@ -230,5 +226,21 @@ namespace PatchworkLib.PatchMesh
             return ls;
         }
 
+
+        internal void ScaleByRatio(float rx, float ry)
+        {
+            for (int i = 0; i < vertices.Count; i++)
+                vertices[i].ScaleByRatio(rx, ry);
+            
+            for (int i = 0; i < controlPoints.Count; i++)
+                controlPoints[i].ScaleByRatio(rx, ry);
+
+            arap = new ARAPDeform(vertices.Select(v => v.orgPosition).ToList(), vertices.Select(v => v.part).ToList());
+            foreach (var c in controlPoints)
+                arap.AddControlPoint(c.position, c.orgPosition, c.part);
+
+            BalancePartCount();
+            arap.BeginDeformation();
+        }
     }
 }

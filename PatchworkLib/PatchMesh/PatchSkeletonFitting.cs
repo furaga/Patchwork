@@ -48,12 +48,6 @@ namespace PatchworkLib.PatchMesh
             mesh.mesh.FlushDefomation();
 
 
-
-
-            
-        
-        
-        
         }
 
         // スケルトン内のbと同じ（jointの名前が同じ）ボーンを探す

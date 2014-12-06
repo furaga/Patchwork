@@ -11,13 +11,14 @@ namespace Magic2D
 {
     public class SegmentToPatch
     {
-        public static Dictionary<string, PatchSkeletalMesh> LoadPatches(string root, string segmentationDirName, Dictionary<string, Bitmap> bitmaps)
+        /// <param name="pathPointInterval">パスの間隔。値が小さいほどメッシュが細かくなる</param>
+        public static Dictionary<string, PatchSkeletalMesh> LoadPatches(string root, string segmentationDirName, Dictionary<string, Bitmap> bitmaps, int pathPointInterval)
         {
             var segmentDict = SegmentLoader.LoadSegments(root, segmentationDirName);
             Dictionary<string, PatchSkeletalMesh> patchDict = new Dictionary<string, PatchSkeletalMesh>();
             foreach (var kv in segmentDict)
             {
-                patchDict[kv.Value.name] = ToPatchSkeletalMesh(kv.Value, bitmaps);
+                patchDict[kv.Value.name] = ToPatchSkeletalMesh(kv.Value, bitmaps, pathPointInterval);
                 kv.Value.Dispose();
             }
             return patchDict;
@@ -25,9 +26,9 @@ namespace Magic2D
 
         // seg.bmpはどこに格納する?patchmesh?pathcmeshrenderer?
         // => pathcMeshRendererResourcesに格納する
-        static PatchSkeletalMesh ToPatchSkeletalMesh(Segment seg, Dictionary<string, Bitmap> bitmaps)
+        static PatchSkeletalMesh ToPatchSkeletalMesh(Segment seg, Dictionary<string, Bitmap> bitmaps, int pathPointInterval)
         {
-            PatchMesh patchMesh = ToPatchMesh(seg);
+            PatchMesh patchMesh = ToPatchMesh(seg, pathPointInterval);
             PatchSkeleton patchSkeleton = ToPatchSkeleton(seg);
             List<PatchSection> patchSections = ToPatchSections(seg, patchMesh.pathIndices.Select(i => patchMesh.vertices[i].position).ToList());
 
@@ -41,13 +42,13 @@ namespace Magic2D
             return skeletalMesh;
         }
 
-        static PatchMesh ToPatchMesh(Segment seg)
+        static PatchMesh ToPatchMesh(Segment seg, int pathPointInterval)
         {
             List<PointF> rawPath = new List<PointF>(seg.path);
 
             // 輪郭からメッシュを生成
             var shiftPath = FLib.FMath.ShiftPath(seg.path, -seg.offset.X, -seg.offset.Y);
-            var subdividedPath = PathSubdivision.Subdivide(shiftPath, 5);
+            var subdividedPath = PathSubdivision.Subdivide(shiftPath, pathPointInterval);
             subdividedPath.RemoveAt(subdividedPath.Count - 1); // 終点（始点と同じ）は消す
 
             List<PointF> vertices = new List<PointF>();

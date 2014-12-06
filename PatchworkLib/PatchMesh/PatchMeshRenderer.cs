@@ -81,12 +81,23 @@ namespace PatchworkLib.PatchMesh
         /// <param name="cameraPosition">x, y : [-∞, +∞], z : [-∞, 0).x, y が大きいほどカメラが右下に移動する.zが小さいほどズームアウトする</param>
         public void DrawMesh(PatchMesh mesh, string textureKey, PatchMeshRenderResources resources, Size formSize, Vector3 cameraPosition)
         {
+            DrawMesh(mesh, textureKey, resources, DXColor.White, formSize, cameraPosition);
+        }
+
+        /// <summary>
+        /// メッシュを描画。
+        /// cameraPositionは x, y : [-∞, +∞], z : [-∞, 0)
+        /// x, y が大きいほどカメラが右下に移動する
+        /// zが小さいほどズームアウトする
+        /// </summary>
+        /// <param name="cameraPosition">x, y : [-∞, +∞], z : [-∞, 0).x, y が大きいほどカメラが右下に移動する.zが小さいほどズームアウトする</param>
+        public void DrawMesh(PatchMesh mesh, string textureKey, PatchMeshRenderResources resources, DXColor col, Size formSize, Vector3 cameraPosition)
+        {
             List<VertexPositionColorTexture> rawVertices = new List<VertexPositionColorTexture>();
             for (int i = 0; i < mesh.vertices.Count; i++)
             {
                 Vector3 pos = vec3(mesh.vertices[i].position);
                 pos.Y *= -1;
-                DXColor col = DXColor.White;
                 Vector2 coord = vec2(mesh.vertices[i].GetTexcoord(textureKey));
                 rawVertices.Add(new VertexPositionColorTexture(pos, col, coord));
             }
