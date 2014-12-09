@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
   <Choose>
     <When Condition="('$(VisualStudioVersion)' == '10.0' or '$(VisualStudioVersion)' == '') and '$(TargetFrameworkVersion)' == 'v3.5'">
@@ -51,9 +52,14 @@
   </Choose>
   <ItemGroup>
     <Compile Include="ARAPDeformation\ARAPDeformationTests.cs" />
+    <Compile Include="PatchMesh\PatchConnectorTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\FLib\FLib2013\FLib\FLib\FLib.csproj">
+      <Project>{6d0669a0-6a26-424b-86b7-e77dff6b6afb}</Project>
+      <Name>FLib</Name>
+    </ProjectReference>
     <ProjectReference Include="..\PatchworkLib\PatchworkLib.csproj">
       <Project>{EF4E2902-FA7C-4ABE-AC88-F7BCB4284DBA}</Project>
       <Name>PatchworkLib</Name>

@@ -70,7 +70,7 @@ namespace PatchworkLib.ARAPDeformation
 
             for (int i = 0; i < controls.Count; i++)
                 controls[i] = pts[i];
-                    }
+        }
 
         public void FlushDefomation()
         {

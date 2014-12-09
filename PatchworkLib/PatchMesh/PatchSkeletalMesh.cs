@@ -94,8 +94,8 @@ namespace PatchworkLib.PatchMesh
         /// </summary>
         public void ScaleByRatio(float rx, float ry)
         {
-            if (rx <= 0 || ry <= 0)
-                throw new Exception(string.Format("ScaleByRatio: rx (={0}) and ry (={1}) cannot be less than 0", rx, ry));
+            if (Math.Abs( rx) <= 0 || Math.Abs( ry) <= 0)
+                throw new Exception(string.Format("ScaleByRatio: |rx| (={0}) and |ry| (={1}) cannot be less than 0", Math.Abs( rx),  Math.Abs(ry)));
 
             scale.X *= rx;
             scale.Y *= ry;
@@ -117,5 +117,19 @@ namespace PatchworkLib.PatchMesh
 
         }
 
+
+        public void MapJointNames(Dictionary<string, string> map)
+        {
+            foreach (var j in skl.joints)
+            {
+                if (map.ContainsKey(j.name))
+                    j.name = map[j.name];
+            }
+        }
+
+        public PatchSkeleton  CopySkeleton()
+        {
+            return PatchSkeleton.Copy(skl);
+        }
     }
 }

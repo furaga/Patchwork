@@ -64,7 +64,12 @@ namespace PatchworkLib.PatchMesh
         {
             if (rotateCamera)
                 time += 0.02f;
-            SharpDXHelper.BeginDraw(RenderInfo);   
+            SharpDXHelper.BeginDraw(RenderInfo);
+        }
+
+        public void ClearDepthStencilView ()
+        {
+            SharpDXHelper.ClearDepthStencilView(RenderInfo);
         }
 
         public void EndDraw()

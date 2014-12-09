@@ -20,8 +20,6 @@ namespace PatchworkLib.PatchMesh
         public List<PatchSkeletonJoint> joints = new List<PatchSkeletonJoint>();
         public List<PatchSkeletonBone> bones = new List<PatchSkeletonBone>();
 
-        Tree<PatchSkeletonJoint> jointTree;
-
         public PatchSkeleton()
         {
         }
@@ -48,28 +46,7 @@ namespace PatchworkLib.PatchMesh
         {
             return new PatchSkeleton(skl);
         }
-
-        public void BuildJointTree()
-        {
-            int rootIdx;
-            FMath.GetMinElement<PatchSkeletonJoint>(joints, j => bones.Count(b => b.dst == j), out rootIdx);
-
-            HashSet<PatchSkeletonJoint> jointSet = new HashSet<PatchSkeletonJoint>(joints);
-            jointTree = new Tree<PatchSkeletonJoint>(joints[rootIdx]);
-
-            // DFS
-        }
-
-        void BuildJointTree_rec(Tree<PatchSkeletonJoint> tree, PatchSkeletonJoint joint, List<PatchSkeletonBone> bones)
-        {/*
-            var subTree = 
-            foreach (var b in bones.Where(b => b.src == joint))
-            {
-                BuildJointTree_rec(tree, b.dst, bones);
-            }
-            */
-        }
-
+        
         public PatchSkeletonJoint GetNearestJoint(PointF point, float threshold, Matrix transform)
         {
             PatchSkeletonJoint nearest = null;

@@ -64,6 +64,7 @@
     <Compile Include="Magic2DAdopters\SegmentToPatch.cs" />
     <Compile Include="Magic2DAdopters\SkeletonAnnotation.cs" />
     <Compile Include="Magic2DAdopters\Segmentation.cs" />
+    <Compile Include="Magic2DAdopters\SplineInterpolator.cs" />
     <Compile Include="PatchMesh\PatchControlPoint.cs" />
     <Compile Include="PatchMesh\PatchMesh.cs" />
     <Compile Include="PatchMesh\PatchMeshCollision.cs" />
@@ -73,6 +74,7 @@
     <Compile Include="PatchMesh\PatchSkeletalMeshRenderer.cs" />
     <Compile Include="PatchMesh\PatchSkeleton.cs" />
     <Compile Include="PatchMesh\PatchSkeletonFitting.cs" />
+    <Compile Include="PatchMesh\PatchSkeletonFKMover.cs" />
     <Compile Include="PatchMesh\PatchTriangle.cs" />
     <Compile Include="PatchMesh\PatchVertex.cs" />
     <Compile Include="PatchMesh\PatchConnector.cs" />

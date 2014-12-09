@@ -66,20 +66,22 @@ namespace PatchworkLib.PatchMesh
         {
             foreach (var v in vertices)
                 this.vertices.Add(new PatchVertex(v));
-//            foreach (var c in controls)
-//                this.controlPoints.Add(new PatchControlPoint(c));
             foreach (var t in mesh)
                 this.triangles.Add(new PatchTriangle(t));
             foreach (int p in path)
                 this.pathIndices.Add(p);
 
-            var rawVertices = this.vertices.Select(v => v.orgPosition).ToList();
-            var vert2part = this.vertices.Select(v => v.part).ToList();
+            var rawVertices = new List<PointF>();
+            foreach (var v in this.vertices)
+                rawVertices.Add(v.orgPosition);
+//            .Select(v => v.orgPosition).ToList();
+            var vert2part = new List<int>();// this.vertices.Select(v => v.part).ToList();
+            foreach (var v in this.vertices)
+                vert2part.Add(v.part);
 
             arap = new ARAPDeform(rawVertices, vert2part);
             foreach (var c in controls)
                 AddControlPoint(c.position, c.orgPosition);
-
         }
 
         internal static PatchMesh Copy(PatchMesh mesh)

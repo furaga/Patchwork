@@ -45,7 +45,6 @@ namespace PatchworkLib.ARAPDeformation.Tests
 
             var vparts = ARAPDeformation.BalancePartCount(parts, cparts, edges);
 
-            Assert.Fail();
         }
     }
 }

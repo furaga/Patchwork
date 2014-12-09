@@ -22,6 +22,47 @@ namespace PatchworkLib.PatchMesh
     ///     PatchMeshの輪郭線 -> path (contourではない)
     public class PatchConnector
     {
+
+        public static PatchSkeletalMesh Connect(List<PatchSkeletalMesh> smeshes, PatchSkeleton refSkeleton, PatchMeshRenderResources resources)
+        {
+            var overlapPairs = GetOverlappedPairs(smeshes, refSkeleton);
+            if (overlapPairs.Count <= 0)
+                return null;
+
+            var newMesh = overlapPairs[0].Item1;
+            List<PatchSkeletalMesh> aggregated = new List<PatchSkeletalMesh>();
+            aggregated.Add(overlapPairs[0].Item1);
+
+            int _orgCnt = overlapPairs.Count;
+
+            for (int j = 0; j < overlapPairs.Count; j++)
+            {
+                for (int i = 0; i < overlapPairs.Count; i++)
+                {
+                    var pair = overlapPairs[i];
+                    if (aggregated.Contains(pair.Item1) && !aggregated.Contains(pair.Item2))
+                    {
+                        newMesh = Connect(newMesh, pair.Item2, refSkeleton, resources);
+                        aggregated.Add(pair.Item2);
+                        overlapPairs.RemoveAt(i);
+                        break;
+                    }
+                    else if (!aggregated.Contains(pair.Item1) && aggregated.Contains(pair.Item2))
+                    {
+                        newMesh = Connect(newMesh, pair.Item1, refSkeleton, resources);
+                        aggregated.Add(pair.Item1);
+                        overlapPairs.RemoveAt(i);
+                        break;
+                    }
+                }
+                System.Diagnostics.Debug.Assert(aggregated.Count == j + 1);
+                System.Diagnostics.Debug.Assert(overlapPairs.Count == _orgCnt - j - 1);
+            }
+
+            return newMesh;
+        }
+
+
         /// <summary>
         /// 2つの骨格つきメッシュをスケルトン情報を元に結合する
         /// 1. スケルトンに合わせて各メッシュをざっくり移動・ボーン方向にARAP
@@ -30,19 +71,19 @@ namespace PatchworkLib.PatchMesh
         /// 4. 新しいARAP可能なひとつのメッシュを生成(combine)                                                                                                                                                                                                                                                                                          /// </summary>
         /// (5. リソースの更新。これはここでやるべきなのだろうか？）
         /// </summary>
-        public static PatchSkeletalMesh Connect(PatchSkeletalMesh smesh1, PatchSkeletalMesh smesh2, PatchSkeleton skl, PatchMeshRenderResources resources)
+        public static PatchSkeletalMesh Connect(PatchSkeletalMesh smesh1, PatchSkeletalMesh smesh2, PatchSkeleton refSkeleton, PatchMeshRenderResources resources)
         {
-            if (skl == null)
+            if (refSkeleton == null)
                 return null;
 
             // メッシュ・骨格データはConnect()内で変更されうるのでコピーしたものを使う
             PatchSkeletalMesh smesh1_t = PatchSkeletalMesh.Copy(smesh1);
             PatchSkeletalMesh smesh2_t = PatchSkeletalMesh.Copy(smesh2);
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1_t, smesh1_t.sections).Save("output/1_mesh1_t.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2_t, smesh2_t.sections).Save("output/2_mesh2_t.png");
 #endif
-            var skl_t = PatchSkeleton.Copy(skl);
+            var skl_t = PatchSkeleton.Copy(refSkeleton);
 
             // smesh1, smesh2で同じボーンを共有している（結合すべき）切り口を探す
             // これらの切り口の付近を変形することでメッシュを繋げる
@@ -52,7 +93,7 @@ namespace PatchworkLib.PatchMesh
             bool found = FindConnectingSections(smesh1_t, smesh2_t, skl_t, out section1, out section2, out crossingBone);
             if (!found)
                 return null;
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1_t, new List<CharacterRange>() { section1 }).Save("output/3_mesh1_t_seciton1.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2_t, new List<CharacterRange>() { section2 }).Save("output/4_mesh2_t_section2.png");
 #endif
@@ -63,30 +104,105 @@ namespace PatchworkLib.PatchMesh
             Deform(smesh1_t, smesh2_t, skl_t, section1, section2, crossingBone);
             smesh2_t.mesh.EndDeformation();
             smesh1_t.mesh.EndDeformation();
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1_t).Save("output/6_mesh1_t_deformed.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2_t).Save("output/7_mesh2_t_deformed.png");
 #endif
 
             // ２つの変形済みのsmeshを１つのsmeshに結合して、ARAPできるようにする
             var combinedSMesh = Combine(smesh1_t, smesh2_t, section1, section2);
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(combinedSMesh, combinedSMesh.sections).Save("output/8_conbinedMesh.png");
 #endif
-            
-            List<string> textureKeys = resources.GetResourceKeyByPatchMesh(smesh1.mesh);
-            textureKeys.AddRange(resources.GetResourceKeyByPatchMesh(smesh2.mesh));
 
-            foreach (var key in textureKeys)
+            if (resources != null)
             {
-                string patchKey = key.Split(':').Last();
-                string newKey = PatchMeshRenderResources.GenerateResourceKey(combinedSMesh.mesh, patchKey);
-                // TODO: テクスチャはコピーしたほうが良い？
-                resources.Add(newKey, resources.GetTexture(key));
+                List<string> textureKeys = resources.GetResourceKeyByPatchMesh(smesh1.mesh);
+                textureKeys.AddRange(resources.GetResourceKeyByPatchMesh(smesh2.mesh));
+
+                foreach (var key in textureKeys)
+                {
+                    string patchKey = key.Split(':').Last();
+                    string newKey = PatchMeshRenderResources.GenerateResourceKey(combinedSMesh.mesh, patchKey);
+                    // TODO: テクスチャはコピーしたほうが良い？
+                    resources.Add(newKey, resources.GetTexture(key));
+                }
             }
 
             return combinedSMesh;
         }
+
+        static List<Tuple<PatchSkeletalMesh, PatchSkeletalMesh>> GetOverlappedPairs(List<PatchSkeletalMesh> smeshes, PatchSkeleton refSkeleton)
+        {
+            Dictionary<PatchSkeletonBone, List<PatchSkeletalMesh>> overlaps = new Dictionary<PatchSkeletonBone, List<PatchSkeletalMesh>>();
+            foreach (var b in refSkeleton.bones)
+                overlaps[b] = new List<PatchSkeletalMesh>();
+
+            foreach (var sm in smeshes)
+            {
+                foreach (var b in sm.skl.bones)
+                {
+                    if (overlaps.ContainsKey(b))
+                    {
+                        overlaps[b].Add(sm);
+                        if (overlaps[b].Count >= 3)
+                        {
+                            //                       System.Diagnostics.Debug.Assert(false);
+                            return new List<Tuple<PatchSkeletalMesh,PatchSkeletalMesh>>();
+                        }
+                    }
+                }
+            }
+
+            var pairs = new List<Tuple<PatchSkeletalMesh, PatchSkeletalMesh>>();
+            
+            foreach (var kv in overlaps)
+            {
+                if (kv.Value.Count != 2)
+                    continue;
+                pairs.Add(new Tuple<PatchSkeletalMesh, PatchSkeletalMesh>(kv.Value[0], kv.Value[1]));
+            }
+
+            return pairs;
+        }
+
+        public static bool CanConnect(List<PatchSkeletalMesh> smeshes, PatchSkeleton refSkeleton)
+        {
+            // 1) ボーンの重なりが最大2
+            // 2) 重なっているボーンで全てのメッシュが連結される
+            // -FindConnectingSections() == true
+
+            var overlapPairs = GetOverlappedPairs(smeshes, refSkeleton);
+
+            HashSet<PatchSkeletalMesh> overlapSMeshes = new HashSet<PatchSkeletalMesh>();
+
+            foreach (var pair in overlapPairs)
+            {
+                overlapSMeshes.Add(pair.Item1);
+                overlapSMeshes.Add(pair.Item2);
+            }
+
+            if (overlapSMeshes.Count != smeshes.Count)
+            {
+                return false;
+            }
+
+            foreach (var pair in overlapPairs)
+            {
+                PatchSection section1;
+                PatchSection section2;
+                PatchSkeletonBone crossingBone;
+                bool found = FindConnectingSections(pair.Item1, pair.Item2, refSkeleton, out section1, out section2, out crossingBone);
+
+                if (!found)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
 
         //-----------------------------------------------------------------------------------
         // FindConnectingSections()
@@ -207,7 +323,7 @@ namespace PatchworkLib.PatchMesh
             // 各メッシュを大雑把にスケルトンに合わせる
             PatchSkeletonFitting.Fitting(smesh1, skl);
             PatchSkeletonFitting.Fitting(smesh2, skl);
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1, new List<PatchSection>() { section1 }).Save("output/5_1_mesh1_fitting.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2, new List<PatchSection>() { section2 }).Save("output/5_2_mesh2_fitting.png");
 #endif
@@ -217,14 +333,14 @@ namespace PatchworkLib.PatchMesh
             
             // 位置の調整
             AdjustPosition(smesh1, smesh2, skl, section1, section2, crossingBone);
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1, new List<PatchSection>() { section1 }).Save("output/5_3_mesh1_AdjustPosition.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2, new List<PatchSection>() { section2 }).Save("output/5_4_mesh2_AdjustPosition.png");
 #endif
 
             // メッシュを伸ばして繋げる
             Expand(smesh1, smesh2, skl, section1, section2, crossingBone);
-#if DEBUG
+#if _DEBUG
             PatchSkeletalMeshRenderer.ToBitmap(smesh1, new List<PatchSection>() { section1 }).Save("output/5_5_mesh1_ExpandPatches.png");
             PatchSkeletalMeshRenderer.ToBitmap(smesh2, new List<PatchSection>() { section2 }).Save("output/5_6_mesh2_ExpandPatches.png");
 #endif

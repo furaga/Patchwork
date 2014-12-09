@@ -1,9 +1,5 @@
-﻿
-//
-// TODO: canvas上のパッチの選択、削除、結合、分解
-// TODO: スケルトンが動かしづらい
-//
-// todo: 3つ以上メッシュをつなげたときに動くか => OK?
+﻿// mesh connectorのデバッグ
+// 繋げられない時は重ねる
 
 using System;
 using System.Collections.Generic;
@@ -31,38 +27,11 @@ namespace Patchwork
 {
     public partial class Form1 : Form
     {
-        #region for debug
-        /*
-        static VertexPositionColorTexture[] rawVertices = new[]
-        {
-            new VertexPositionColorTexture(new Vector3(-1,-1,-1), DXColor.Red, new Vector2(0, 0)),
-            new VertexPositionColorTexture(new Vector3(1,-1,-1), DXColor.Blue, new Vector2(1, 0)),
-            new VertexPositionColorTexture(new Vector3(-1,1,-1), DXColor.Yellow, new Vector2(1, 0)),
-            new VertexPositionColorTexture(new Vector3(-1,-1,1), DXColor.Green, new Vector2(1, 1)),
-            new VertexPositionColorTexture(new Vector3(1,1,-1), DXColor.Purple, new Vector2(1, 1)),
-            new VertexPositionColorTexture(new Vector3(1,-1,1), DXColor.Cyan, new Vector2(0, 1)),
-            new VertexPositionColorTexture(new Vector3(-1,1,1), DXColor.White, new Vector2(1, 0)),
-            new VertexPositionColorTexture(new Vector3(1,1,1), DXColor.LightGreen, new Vector2(0, 0)),
-        };
-        static int[] rawIndices = new[]
-        {
-            0, 2, 4,    0, 4, 1,
-            3, 7, 6,    3, 5, 7,            
-            2, 6, 7,    2, 7, 4,
-            0, 5, 3,    0, 1, 5,
-            0, 3, 6,    0, 6, 2,
-            1, 7, 5,    1, 4, 7,
-        };
-         
-        static int[] pathIndices = new[] { 1, 2, 3, 4 };
-         */
-        #endregion //for debug
-
         class SaveObjects
         {
             public float cameraX, cameraY, cameraZ;
             public PatchSkeleton refSkeleton;
-            //            public Dictionary<string, List<string>> texturePathKeys = new Dictionary<string,List<string>>();
+//            public Dictionary<string, List<string>> texturePathKeys = new Dictionary<string,List<string>>();
 //            public Dictionary<string, RenderQuery> renderQueryPool = new Dictionary<string, RenderQuery>();
 //            public List<RenderQuery> renderPatchQueries = new List<RenderQuery>();
         }
@@ -114,10 +83,10 @@ namespace Patchwork
         PatchSkeleton refSkeleton;
 
         // インタラクション
-        List<RenderQuery> selectingPatchQueries = new List<RenderQuery>();
+        List<RenderQuery> selectingQueries = new List<RenderQuery>();
 
         Dictionary<string, RenderQuery> renderQueryPool = new Dictionary<string, RenderQuery>();
-        List<RenderQuery> renderPatchQueries = new List<RenderQuery>();
+        List<RenderQuery> renderQueries = new List<RenderQuery>();
 
         int combinedCount = 0;
 
@@ -151,9 +120,9 @@ namespace Patchwork
             Dictionary<string, PatchSkeletalMesh> dict;
             Dictionary<string, Bitmap> bitmaps = new Dictionary<string, Bitmap>();
 
-            dict = Magic2D.SegmentToPatch.LoadPatches("../../../../..", "Patchwork_resources/GJ_ED3/3_segmentation", bitmaps, 2);            
-            //dict = Magic2D.SegmentToPatch.LoadPatches(".", "3_segmentation", bitmaps, 4);
-
+//            dict = Magic2D.SegmentToPatch.LoadPatches("../../../../..", "Patchwork_resources/GJ_ED3/3_segmentation", bitmaps, 2);            
+            dict = Magic2D.SegmentToPatch.LoadPatches("./settings", "3_segmentation", bitmaps, 4);
+            
             System.Diagnostics.Debug.Assert(dict.Count == bitmaps.Count);
 
 
@@ -181,7 +150,7 @@ namespace Patchwork
                 patchView.Items.Add(kv.Key, kv.Key, kv.Key);
             }
             
-            refSkeleton = PatchSkeleton.Load("refSkeleton.skl");
+            refSkeleton = PatchSkeleton.Load("./settings/refSkeleton.skl");
             
             canvas.MouseWheel += canvas_MouseWheel;
         }
@@ -199,23 +168,56 @@ namespace Patchwork
             // renderer.rotateCamera = true;
             renderer.BeginDraw();
 
-            foreach (var query in renderPatchQueries)
+            bool canConnect = PatchConnector.CanConnect(selectingQueries.Select(q => q.patch).ToList(), refSkeleton);
+
+            foreach (var query in renderQueries)
             {
                 DXColor color = DXColor.White;
-                if (selectingPatchQueries.Contains(query)) // 選択中は赤くする
-                    color = DXColor.Red;
-                foreach (var key in query.patchKeys)
-                    renderer.DrawMesh(query.patch.Mesh, key, resources, color, canvas.ClientSize, cameraPosition);
+                if (selectingQueries.Contains(query)) // 選択中は赤くする
+                {
+                    if (canConnect)
+                        color = DXColor.Green;
+                    else
+                        color = DXColor.Red;
+                }
+
+                if (CBoxDrawMesh.Checked)
+                {
+                    foreach (var key in query.patchKeys)
+                        renderer.DrawMesh(query.patch.Mesh, key, resources, color, canvas.ClientSize, cameraPosition);
+                }
+
+                if (CBoxDrawPolygon.Checked)
+                {
+                    foreach (var key in query.patchKeys)
+                        renderer.DrawWireframe(query.patch.Mesh, key, color, canvas.ClientSize, cameraPosition);
+                }
+
+                renderer.ClearDepthStencilView();
             }
 
-            for (int i = 0; i < 100; i++)
-                renderer.DrawPoint(new PointF(100 * (i % 10), 100 * (i / 10)), 4, DXColor.Green, canvas.ClientSize, cameraPosition);
+            // 必ずメッシュの上に描画されるように、深度バッファをクリアする
+            renderer.ClearDepthStencilView();
 
-            foreach (var b in refSkeleton.bones)
-                renderer.DrawLine(b.src.position, b.dst.position, 4, DXColor.White, canvas.ClientSize, cameraPosition);
+            if (CBoxDrawRefSkeleton.Checked)
+            {
+                foreach (var b in refSkeleton.bones)
+                    renderer.DrawLine(b.src.position, b.dst.position, 4, DXColor.Blue, canvas.ClientSize, cameraPosition);
 
-            foreach (var j in refSkeleton.joints)
-                renderer.DrawPoint(j.position, 8, DXColor.Yellow, canvas.ClientSize, cameraPosition);
+                foreach (var j in refSkeleton.joints)
+                    renderer.DrawPoint(j.position, 8, DXColor.Yellow, canvas.ClientSize, cameraPosition);
+            }
+
+            renderer.ClearDepthStencilView();
+
+            foreach (var query in selectingQueries)
+            {
+                if (CBoxDrawSkeleton.Checked)
+                {
+                    foreach (var b in query.patch.CopySkeleton().bones)
+                        renderer.DrawLine(b.src.position, b.dst.position, 6, DXColor.Orange, canvas.ClientSize, cameraPosition);
+                }
+            }
 
             renderer.EndDraw();
         }
@@ -253,22 +255,22 @@ namespace Patchwork
                     // 関節以外の部分がクリックされたらパッチの選択をチェックする
                     Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
                     bool anyHit = false;
-                    foreach (var q in renderPatchQueries)
+                    foreach (var q in renderQueries)
                     {
                         // このパッチ（クエリ）がクリックされたら選択状態をトグルする
                         if (PatchMeshCollision.IsHit(q.patch.Mesh, new PointF(p.X, p.Y)))
                         {
                             anyHit = true;
-                            if (selectingPatchQueries.Contains(q))
-                                selectingPatchQueries.Remove(q);
+                            if (selectingQueries.Contains(q))
+                                selectingQueries.Remove(q);
                             else
-                                selectingPatchQueries.Add(q);
+                                selectingQueries.Add(q);
                         }
                     }
                     if (!anyHit)
                     {
                         // なにもないところをクリックしたら選択解除
-                        selectingPatchQueries.Clear();
+                        selectingQueries.Clear();
                     }
                 }
             }
@@ -291,8 +293,8 @@ namespace Patchwork
                 if (draggedJoint != null)
                 {
                     Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
-                    draggedJoint.position = new PointF(p.X, p.Y);
-                    foreach (var query in renderPatchQueries)
+                    PatchSkeletonFKMover.MoveJoint(refSkeleton, draggedJoint, new PointF(p.X, p.Y));
+                    foreach (var query in renderQueries)
                         PatchSkeletonFitting.Fitting(query.patch, refSkeleton);
                 }
             }
@@ -361,71 +363,18 @@ namespace Patchwork
                 resources.DuplicateResources(_q.patch.Mesh, q.patch.Mesh);
 
                 // 初めて登録される場合、ARAP変形を有効にしてスケルトにフィットさせる
-                if (!renderPatchQueries.Contains(q))
+                if (!renderQueries.Contains(q))
                 {
                     q.patch.Mesh.BeginDeformation();
                     PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
                 }
 
-                if (renderPatchQueries.Contains(q))
-                    renderPatchQueries.Remove(q);
-                renderPatchQueries.Add(q);
+                if (renderQueries.Contains(q))
+                    renderQueries.Remove(q);
+                renderQueries.Add(q);
 
                 // 追加したパッチを選択モードにする
-                selectingPatchQueries.Add(q);
-            }
-        }
-
-        // selectingPatchesをすべて結合する
-        private void combineCToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string newKey =  "combined" + combinedCount;
-            PatchSkeletalMesh newMesh = selectingPatchQueries[0].patch;
-            PatchTree newTree = selectingPatchQueries[0].patchTree;
-            HashSet<string> patchKeySet = new HashSet<string>();
-            for (int i = 1; i < selectingPatchQueries.Count; i++)
-            {
-                newMesh = PatchConnector.Connect(newMesh, selectingPatchQueries[i].patch, refSkeleton, resources);
-                newTree = new PatchTree(newTree, selectingPatchQueries[i].patchTree);
-            }
-            for (int i = 0; i < selectingPatchQueries.Count; i++)
-            {
-                foreach (string k in selectingPatchQueries[i].patchKeys)
-                    patchKeySet.Add(k);
-            }
-            if (newMesh == null)
-                return;
-
-            newMesh.Mesh.BeginDeformation();
-
-            renderQueryPool.Add(newKey, new RenderQuery(newMesh, newTree, patchKeySet.ToList()));
-            combinedCount++;
-
-
-            foreach (var q in selectingPatchQueries)
-                renderPatchQueries.Remove(q);
-            renderPatchQueries.Add(renderQueryPool[newKey]);
-
-            selectingPatchQueries.Clear();
-        }
-
-        private void deleteDToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            foreach (var q in selectingPatchQueries)
-            {
-                renderPatchQueries.Remove(q);
-                resources.RemoveResources(q.patch.Mesh);
-            }
-            selectingPatchQueries.Clear();
-        }
-
-        private void scaleSlider_Scroll(object sender, EventArgs e)
-        {
-            float scale = scaleSlider.Value * 0.1f;
-            foreach (var q in selectingPatchQueries)
-            {
-                q.patch.Scale(scale, scale);
-                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+                selectingQueries.Add(q);
             }
         }
 
@@ -447,8 +396,8 @@ namespace Patchwork
                 cameraZ = cameraPosition.Z,
                 refSkeleton = refSkeleton
             };
-            
-            FLib.ForceSerializer.Serialize(dir, save, filename);
+
+            FLib.ForceSerializer.Serialize(save, dir, filename);
         }
 
         private void openOToolStripMenuItem_Click(object sender, EventArgs e)
@@ -466,6 +415,142 @@ namespace Patchwork
             refSkeleton = saved.refSkeleton;
 
         }
+
+        // selectingPatchesをすべて結合する
+        private void combineCToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            PatchSkeletalMesh smesh1, smesh2;
+            PatchSkeleton refSkeleton;
+            FLib.ForceSerializer.Deserialize("../../../Patchwork/bin/Debug/Connect", out smesh1, out smesh2, out refSkeleton);
+            PatchConnector.Connect(smesh1, smesh2, refSkeleton, null);
+
+
+            string newKey =  "combined" + combinedCount;
+            PatchSkeletalMesh newMesh = selectingQueries[0].patch;
+            PatchTree newTree = selectingQueries[0].patchTree;
+            HashSet<string> patchKeySet = new HashSet<string>();
+            for (int i = 1; i < selectingQueries.Count; i++)
+            {
+                newMesh = PatchConnector.Connect(newMesh, selectingQueries[i].patch, refSkeleton, resources);
+                newTree = new PatchTree(newTree, selectingQueries[i].patchTree);
+            }
+            for (int i = 0; i < selectingQueries.Count; i++)
+            {
+                foreach (string k in selectingQueries[i].patchKeys)
+                    patchKeySet.Add(k);
+            }
+            if (newMesh == null)
+                return;
+
+            newMesh.Mesh.BeginDeformation();
+
+            renderQueryPool.Add(newKey, new RenderQuery(newMesh, newTree, patchKeySet.ToList()));
+            combinedCount++;
+
+
+            foreach (var q in selectingQueries)
+                renderQueries.Remove(q);
+            renderQueries.Add(renderQueryPool[newKey]);
+
+            selectingQueries.Clear();
+        }
+
+        private void deleteDToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            foreach (var q in selectingQueries)
+            {
+                renderQueries.Remove(q);
+                resources.RemoveResources(q.patch.Mesh);
+            }
+            selectingQueries.Clear();
+        }
+
+        private void scaleSlider_Scroll(object sender, EventArgs e)
+        {
+            float scale = scaleSlider.Value * 0.1f;
+            foreach (var q in selectingQueries)
+            {
+                q.patch.Scale(scale, scale);
+                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+            }
+        }
+
+        private void reverseLeftrightRToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            foreach (var q in selectingQueries)
+            {
+                q.patch.Scale(-1, 1);
+                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+            }
+        }
+
+        private void reverseJointNameJToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // 選択中のパッチのsklを左右対称にする
+            // 対象な関節のマッピングはsymJoints.txtに記述される
+            Dictionary<string, string> map = new Dictionary<string, string>();
+            string symJointPath = "settings/symJoints.txt";
+            foreach (var line in System.IO.File.ReadAllLines(symJointPath))
+            {
+                var tokens = line.Split(',');
+                if (tokens.Length != 2)
+                    continue;
+                map[tokens[0].Trim()] = tokens[1].Trim();
+                map[tokens[1].Trim()] = tokens[0].Trim();
+            }
+
+            foreach (var q in selectingQueries)
+            {
+                q.patch.MapJointNames(map);
+                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+            }
+        }
+
+        //---------------------------------------------------------------------------
+
+        private void bringToFrontToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            for (int i = renderQueries.Count - 2; i >= 0 ; i--)
+            {
+                if (selectingQueries.Contains(renderQueries[i]))
+                {
+                    var _q = renderQueries[i + 1];
+                    renderQueries[i + 1] = renderQueries[i];
+                    renderQueries[i] = _q;
+                }
+            }
+
+        }
+
+        private void bringForwardToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            renderQueries.RemoveAll(q => selectingQueries.Contains(q));
+            renderQueries.AddRange(selectingQueries.Where(q => !renderQueries.Contains(q)).ToList());
+        }
+
+        private void bringToBackToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            for (int i = 1; i < renderQueries.Count; i++)
+            {
+                if (selectingQueries.Contains(renderQueries[i]))
+                {
+                    var _q = renderQueries[i - 1];
+                    renderQueries[i - 1] = renderQueries[i];
+                    renderQueries[i] = _q;
+                }
+            }
+        }
+
+        private void bringBackwardToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var _qs = renderQueries.ToList();
+            renderQueries.Clear();
+            renderQueries.AddRange(selectingQueries);
+            renderQueries.AddRange(_qs.Where(q => !renderQueries.Contains(q)).ToList());
+        }
+
 
     }
 

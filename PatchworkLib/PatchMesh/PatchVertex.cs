@@ -46,7 +46,7 @@ namespace PatchworkLib.PatchMesh
             this.position = v.position;
             this.orgPosition = v.orgPosition;
             this.part = v.part;
-            this.texcoordDict = new Dictionary<string, PointF>(v.texcoordDict);
+            this.texcoordDict = v.texcoordDict == null ? new Dictionary<string, PointF>() : new Dictionary<string, PointF>(v.texcoordDict);
         }
 
         public PointF GetTexcoord(string patchKey)
