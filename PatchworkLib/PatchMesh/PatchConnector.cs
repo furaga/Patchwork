@@ -55,7 +55,7 @@ namespace PatchworkLib.PatchMesh
                         break;
                     }
                 }
-                System.Diagnostics.Debug.Assert(aggregated.Count == j + 1);
+                System.Diagnostics.Debug.Assert(aggregated.Count == j + 2);
                 System.Diagnostics.Debug.Assert(overlapPairs.Count == _orgCnt - j - 1);
             }
 
@@ -79,18 +79,22 @@ namespace PatchworkLib.PatchMesh
             // メッシュ・骨格データはConnect()内で変更されうるのでコピーしたものを使う
             PatchSkeletalMesh smesh1_t = PatchSkeletalMesh.Copy(smesh1);
             PatchSkeletalMesh smesh2_t = PatchSkeletalMesh.Copy(smesh2);
-#if _DEBUG
-            PatchSkeletalMeshRenderer.ToBitmap(smesh1_t, smesh1_t.sections).Save("output/1_mesh1_t.png");
-            PatchSkeletalMeshRenderer.ToBitmap(smesh2_t, smesh2_t.sections).Save("output/2_mesh2_t.png");
+#if DEBUG
+            PatchSkeletalMeshRenderer.ToBitmap(smesh1_t, smesh1_t.sections, alignment: true).Save("smesh1_t.png");
+            PatchSkeletalMeshRenderer.ToBitmap(smesh2_t, smesh2_t.sections, alignment: true).Save("smesh2_t.png");
 #endif
-            var skl_t = PatchSkeleton.Copy(refSkeleton);
+            var refSkeleton_t = PatchSkeleton.Copy(refSkeleton);
 
             // smesh1, smesh2で同じボーンを共有している（結合すべき）切り口を探す
             // これらの切り口の付近を変形することでメッシュを繋げる
             PatchSection section1;
             PatchSection section2;
             PatchSkeletonBone crossingBone;
-            bool found = FindConnectingSections(smesh1_t, smesh2_t, skl_t, out section1, out section2, out crossingBone);
+
+            bool canConnect = CanConnect(new List<PatchSkeletalMesh>() { smesh1, smesh2 }, refSkeleton);
+            bool canConnect_t = CanConnect(new List<PatchSkeletalMesh>() { smesh1_t, smesh2_t }, refSkeleton_t);
+
+            bool found = FindConnectingSections(smesh1_t, smesh2_t, refSkeleton_t, out section1, out section2, out crossingBone);
             if (!found)
                 return null;
 #if _DEBUG
@@ -101,7 +105,7 @@ namespace PatchworkLib.PatchMesh
             // ２つのsmeshが重なるように位置調整およびARAP変形をする
             smesh1_t.mesh.BeginDeformation();
             smesh2_t.mesh.BeginDeformation();
-            Deform(smesh1_t, smesh2_t, skl_t, section1, section2, crossingBone);
+            Deform(smesh1_t, smesh2_t, refSkeleton_t, section1, section2, crossingBone);
             smesh2_t.mesh.EndDeformation();
             smesh1_t.mesh.EndDeformation();
 #if _DEBUG
@@ -168,6 +172,9 @@ namespace PatchworkLib.PatchMesh
 
         public static bool CanConnect(List<PatchSkeletalMesh> smeshes, PatchSkeleton refSkeleton)
         {
+            if (smeshes == null || refSkeleton == null || smeshes.Count <= 1)
+                return false;
+
             // 1) ボーンの重なりが最大2
             // 2) 重なっているボーンで全てのメッシュが連結される
             // -FindConnectingSections() == true
@@ -706,7 +713,15 @@ namespace PatchworkLib.PatchMesh
                 p2i[vertices[i].position] = i;
             Dictionary<PointF, int> pt2part = vertices.ToDictionary(v => v.position, v => v.part);
 
-            List<PatchControlPoint> controlPoints = CombineControlPoints(smesh1.mesh.CopyControlPoints(), smesh2.mesh.CopyControlPoints(), pt2part);
+            Dictionary<int, int> part2part_1 = new Dictionary<int, int>(); // smesh1の各パートが新しいメッシュのどのパートになるか
+            foreach (var v in smesh1.mesh.vertices)
+                part2part_1[v.part] = pt2part[v.position];
+
+            Dictionary<int, int> part2part_2 = new Dictionary<int, int>(); // smesh2の各パートが新しいメッシュのどのパートになるか
+            foreach (var v in smesh2.mesh.vertices)
+                part2part_2[v.part] = pt2part[v.position];
+
+            List<PatchControlPoint> controlPoints = CombineControlPoints(smesh1.mesh.CopyControlPoints(), smesh2.mesh.CopyControlPoints(), part2part_1, part2part_2);
             List<PatchTriangle> triangles = CombineTriangles(smesh1.mesh.triangles, smesh2.mesh.triangles, smesh1.mesh.vertices, smesh2.mesh.vertices, p2i);
             List<int> path = CombinePath(smesh1.mesh.pathIndices, smesh2.mesh.pathIndices, smesh1.mesh.vertices, smesh2.mesh.vertices, section1, section2, p2i);
 
@@ -793,18 +808,15 @@ namespace PatchworkLib.PatchMesh
             return vertices;
         }
 
-        private static List<PatchControlPoint> CombineControlPoints(List<PatchControlPoint> controlPoints1, List<PatchControlPoint> controlPoints2, Dictionary<PointF, int> pt2part)
+        private static List<PatchControlPoint> CombineControlPoints(List<PatchControlPoint> controlPoints1, List<PatchControlPoint> controlPoints2, 
+            Dictionary<int, int> part2part_1, Dictionary<int, int> part2part_2)
         {
             List<PatchControlPoint> controlPoints = new List<PatchControlPoint>();
 
-            HashSet<PointF> controlPointSet = new HashSet<PointF>();
             foreach (var c in controlPoints1)
-                controlPointSet.Add(c.position);
+                controlPoints.Add(new PatchControlPoint(c.position, part2part_1[c.part]));
             foreach (var c in controlPoints2)
-                controlPointSet.Add(c.position);
-
-            foreach (var pt in controlPointSet)
-                controlPoints.Add(new PatchControlPoint(pt, pt2part[pt]));
+                controlPoints.Add(new PatchControlPoint(c.position, part2part_2[c.part]));
 
             return controlPoints;
         }
@@ -897,37 +909,37 @@ namespace PatchworkLib.PatchMesh
         {
             PatchSkeleton skl = new PatchSkeleton();
 
-            Dictionary<string, PatchSkeletonJoint> jointDict = new Dictionary<string, PatchSkeletonJoint>();
-
             // 関節を追加
             foreach (var j in skl1.joints)
             {
                 skl.joints.Add(new PatchSkeletonJoint(j.name, j.position));
-                jointDict[j.name] = j;
             }
             foreach (var j in skl2.joints)
             {
-                if (!jointDict.ContainsKey(j.name))
+                if (!skl.joints.Any(_j => _j.name == j.name))
                 {
                     skl.joints.Add(new PatchSkeletonJoint(j.name, j.position));
-                    jointDict[j.name] = j;
                 }
             }
 
             // ボーンを追加
             foreach (var b in skl1.bones)
             {
-                if (jointDict.ContainsKey(b.src.name) && jointDict.ContainsKey(b.dst.name))
+                if (skl.joints.Any(j => j.name == b.src.name) && skl.joints.Any(j => j.name == b.dst.name))
                 {
-                    var newBone = new PatchSkeletonBone(jointDict[b.src.name], jointDict[b.dst.name]);
+                    var newBone = new PatchSkeletonBone(
+                        skl.joints.First(j => j.name == b.src.name),
+                        skl.joints.First(j => j.name == b.dst.name));
                     skl.bones.Add(newBone);
                 }
             }
             foreach (var b in skl2.bones)
             {
-                if (jointDict.ContainsKey(b.src.name) && jointDict.ContainsKey(b.dst.name))
+                if (skl.joints.Any(j => j.name == b.src.name) && skl.joints.Any(j => j.name == b.dst.name))
                 {
-                    var newBone = new PatchSkeletonBone(jointDict[b.src.name], jointDict[b.dst.name]);
+                    var newBone = new PatchSkeletonBone(
+                        skl.joints.First(j => j.name == b.src.name),
+                        skl.joints.First(j => j.name == b.dst.name));
                     if (!skl.bones.Contains(newBone))
                         skl.bones.Add(newBone);
                 }

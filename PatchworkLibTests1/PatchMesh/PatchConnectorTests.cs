@@ -11,21 +11,29 @@ namespace PatchworkLib.PatchMesh.Tests
     public class PatchConnectorTests
     {
         [TestMethod()]
-        public void CanConnectTest()
+        public void CanConnectTest03()
         {
-            var refSkeleton = FLib.ForceSerializer.Deserialize<PatchSkeleton>("../../../Patchwork/bin/Debug/CanConnect", "refSkeleton");
-            var smeshes = FLib.ForceSerializer.Deserialize<List<PatchSkeletalMesh>>("../../../Patchwork/bin/Debug/CanConnect", "smeshes");
+            List<PatchSkeletalMesh> smeshes;
+            PatchSkeleton refSkeleton;
+            FLib.ForceSerializer.Deserialize("../../../Patchwork/bin/Debug/Connect03", out smeshes, out refSkeleton);
             Assert.IsTrue(PatchConnector.CanConnect(smeshes, refSkeleton));
         }
 
         [TestMethod()]
-        public void ConnectTest()
+        public void ConnectTest03()
         {
-            PatchSkeletalMesh smesh1, smesh2;
+            List<PatchSkeletalMesh> smeshes;
             PatchSkeleton refSkeleton;
-            FLib.ForceSerializer.Deserialize("../../../Patchwork/bin/Debug/Connect", out smesh1, out smesh2, out refSkeleton);
-            var combined = PatchConnector.Connect(smesh1, smesh2, refSkeleton, null);
+            FLib.ForceSerializer.Deserialize("../../../Patchwork/bin/Debug/Connect03", out smeshes, out refSkeleton);
+
+            for (int i = 0; i < smeshes.Count; i++)
+                PatchSkeletalMeshRenderer.ToBitmap(smeshes[i], alignment: true).Save("smesh[" + i + "].png");
+
+            var combined = PatchConnector.Connect(smeshes, refSkeleton, null);
+            Assert.IsNotNull(combined);
+
             PatchSkeletalMeshRenderer.ToBitmap(combined).Save("combined.png");
         }
+
     }
 }

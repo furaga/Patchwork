@@ -66,5 +66,11 @@ namespace PatchworkLib.PatchMesh
             position = new PointF(position.X * rx, position.Y * ry);
             orgPosition = new PointF(orgPosition.X * rx, orgPosition.Y * ry);
         }
+
+        public override string ToString()
+        {
+            var str = string.Format("[{0}]({1},{2}) <- ({3},{4})", part, position.X, position.Y, orgPosition.X, orgPosition.Y);
+            return str;
+        }
     }
 }

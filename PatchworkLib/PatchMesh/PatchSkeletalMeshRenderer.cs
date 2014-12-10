@@ -28,8 +28,11 @@ namespace PatchworkLib.PatchMesh
         {
             int maxx = (int)mesh.mesh.vertices.Select(p => p.position.X).Max() + 1;
             int maxy = (int)mesh.mesh.vertices.Select(p => p.position.Y).Max() + 1;
-            if (maxx <= 0 || maxy <= 0)
-                return null;
+            if (!alignment)
+            {
+                if (maxx <= 0 || maxy <= 0)
+                    return null;
+            }
 
             int minx = (int)mesh.mesh.vertices.Select(p => p.position.X).Min() - 1;
             int miny = (int)mesh.mesh.vertices.Select(p => p.position.Y).Min() - 1;

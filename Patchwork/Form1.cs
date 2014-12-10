@@ -1,5 +1,20 @@
-﻿// mesh connectorのデバッグ
-// 繋げられない時は重ねる
+﻿/*
+ * 
+ * 1) つなぎ方が汚い
+ * DecoBrush(http://gfx.cs.princeton.edu/pubs/Lu_2014_DDS/Lu_2014_DDS.pdf)ないしBiggerPictureの合成を参考にConnectorを改良
+ * いろいろ工夫しているみたいなので、できるだけ取り入れる
+ * 時間はかかるが大事なことなので時間をかける
+ * Connect時に完全に新しいメッシュにすべき
+ * 
+ * 2) メッシュの一部を切り口方向に伸ばしたい.縮ませたい
+ * ボーン選択モードにして、スライダーで縮小
+ * 
+ * 3) 繋げられない時は重ねる
+ * 
+ * 4) スケルトンの形によるパッチの自動選択
+ * 最初は単にconnectivePatchListをソートするだけ
+ * 
+ */
 
 using System;
 using System.Collections.Generic;
@@ -31,9 +46,9 @@ namespace Patchwork
         {
             public float cameraX, cameraY, cameraZ;
             public PatchSkeleton refSkeleton;
-//            public Dictionary<string, List<string>> texturePathKeys = new Dictionary<string,List<string>>();
-//            public Dictionary<string, RenderQuery> renderQueryPool = new Dictionary<string, RenderQuery>();
-//            public List<RenderQuery> renderPatchQueries = new List<RenderQuery>();
+            //            public Dictionary<string, List<string>> texturePathKeys = new Dictionary<string,List<string>>();
+            //            public Dictionary<string, RenderQuery> renderQueryPool = new Dictionary<string, RenderQuery>();
+            //            public List<RenderQuery> renderPatchQueries = new List<RenderQuery>();
         }
 
         //---------------------------------------------------------
@@ -52,9 +67,7 @@ namespace Patchwork
             }
         }
 
-        /// <summary>
         /// 現在のパッチがどのように生成されたか。パッチを分解したりするときに使う
-        /// </summary>
         class PatchTree
         {
             readonly string patchKey = null;
@@ -120,9 +133,9 @@ namespace Patchwork
             Dictionary<string, PatchSkeletalMesh> dict;
             Dictionary<string, Bitmap> bitmaps = new Dictionary<string, Bitmap>();
 
-//            dict = Magic2D.SegmentToPatch.LoadPatches("../../../../..", "Patchwork_resources/GJ_ED3/3_segmentation", bitmaps, 2);            
-            dict = Magic2D.SegmentToPatch.LoadPatches("./settings", "3_segmentation", bitmaps, 4);
-            
+            //dict = Magic2D.SegmentToPatch.LoadPatches("../../../../..", "Patchwork_resources/GJ_ED3/3_segmentation", bitmaps, 2);
+                        dict = Magic2D.SegmentToPatch.LoadPatches("./settings", "3_segmentation", bitmaps, 4);
+
             System.Diagnostics.Debug.Assert(dict.Count == bitmaps.Count);
 
 
@@ -149,9 +162,9 @@ namespace Patchwork
                 patchImageList.Images.Add(kv.Key, kv.Value);
                 patchView.Items.Add(kv.Key, kv.Key, kv.Key);
             }
-            
+
             refSkeleton = PatchSkeleton.Load("./settings/refSkeleton.skl");
-            
+
             canvas.MouseWheel += canvas_MouseWheel;
         }
 
@@ -265,12 +278,18 @@ namespace Patchwork
                                 selectingQueries.Remove(q);
                             else
                                 selectingQueries.Add(q);
+
+                            //
+                            UpdateConnectablePatchView(renderQueryPool, selectingQueries, refSkeleton);
                         }
                     }
                     if (!anyHit)
                     {
                         // なにもないところをクリックしたら選択解除
                         selectingQueries.Clear();
+
+                        //
+                        UpdateConnectablePatchView(renderQueryPool, selectingQueries, refSkeleton);
                     }
                 }
             }
@@ -295,7 +314,9 @@ namespace Patchwork
                     Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
                     PatchSkeletonFKMover.MoveJoint(refSkeleton, draggedJoint, new PointF(p.X, p.Y));
                     foreach (var query in renderQueries)
+                    {
                         PatchSkeletonFitting.Fitting(query.patch, refSkeleton);
+                    }
                 }
             }
 
@@ -353,6 +374,10 @@ namespace Patchwork
             }
         }
 
+        //--------------------------------------------------------------------
+        //
+        //--------------------------------------------------------------------
+
         void AddQuery(string resourceKey)
         {
             if (renderQueryPool.ContainsKey(resourceKey))
@@ -375,6 +400,8 @@ namespace Patchwork
 
                 // 追加したパッチを選択モードにする
                 selectingQueries.Add(q);
+
+                UpdateConnectablePatchView(renderQueryPool, selectingQueries, refSkeleton);
             }
         }
 
@@ -419,26 +446,20 @@ namespace Patchwork
         // selectingPatchesをすべて結合する
         private void combineCToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            PatchSkeletalMesh smesh1, smesh2;
-            PatchSkeleton refSkeleton;
-            FLib.ForceSerializer.Deserialize("../../../Patchwork/bin/Debug/Connect", out smesh1, out smesh2, out refSkeleton);
-            PatchConnector.Connect(smesh1, smesh2, refSkeleton, null);
+            string newKey = "combined" + combinedCount;
 
-
-            string newKey =  "combined" + combinedCount;
-            PatchSkeletalMesh newMesh = selectingQueries[0].patch;
-            PatchTree newTree = selectingQueries[0].patchTree;
             HashSet<string> patchKeySet = new HashSet<string>();
-            for (int i = 1; i < selectingQueries.Count; i++)
-            {
-                newMesh = PatchConnector.Connect(newMesh, selectingQueries[i].patch, refSkeleton, resources);
-                newTree = new PatchTree(newTree, selectingQueries[i].patchTree);
-            }
             for (int i = 0; i < selectingQueries.Count; i++)
             {
                 foreach (string k in selectingQueries[i].patchKeys)
                     patchKeySet.Add(k);
             }
+
+            PatchSkeletalMesh newMesh = PatchConnector.Connect(selectingQueries.Select(q => q.patch).ToList(), refSkeleton, resources);
+            
+            
+            PatchTree newTree = new PatchTree(null, null);
+
             if (newMesh == null)
                 return;
 
@@ -512,7 +533,7 @@ namespace Patchwork
 
         private void bringToFrontToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            for (int i = renderQueries.Count - 2; i >= 0 ; i--)
+            for (int i = renderQueries.Count - 2; i >= 0; i--)
             {
                 if (selectingQueries.Contains(renderQueries[i]))
                 {
@@ -551,6 +572,51 @@ namespace Patchwork
             renderQueries.AddRange(_qs.Where(q => !renderQueries.Contains(q)).ToList());
         }
 
+
+        //--------------------------------------------------------------------
+        // 選択中のパッチと接続可能なパッチの列挙
+        //--------------------------------------------------------------------
+
+        List<string> ConnectableRenderQueries(Dictionary<string, RenderQuery> renderQueryPool, List<RenderQuery> queries, PatchSkeleton refSkeleton)
+        {
+            List<PatchSkeletalMesh> smeshes = new List<PatchSkeletalMesh>();
+            foreach (var q in queries)
+                smeshes.Add(q.patch);
+
+            var cmeshes = new List<string>();
+            foreach (var kv in renderQueryPool)
+            {
+                smeshes.Add(kv.Value.patch);
+                if (PatchConnector.CanConnect(smeshes, refSkeleton))
+                    cmeshes.Add(kv.Key);
+                smeshes.RemoveAt(smeshes.Count - 1);
+            }
+
+            return cmeshes;
+        }
+
+        void UpdateConnectablePatchView(Dictionary<string, RenderQuery> renderQueryPool, List<RenderQuery> queries, PatchSkeleton refSkeleton)
+        {
+            var addKeys = ConnectableRenderQueries(renderQueryPool, selectingQueries, refSkeleton);
+            var removeItems = new List<ListViewItem>();
+            foreach (ListViewItem item in connectablePatchView.Items)
+            {
+                if (!addKeys.Contains(item.ImageKey))
+                    removeItems.Add(item);
+            }
+
+            foreach (var item in removeItems)
+                connectablePatchView.Items.Remove(item);
+
+            foreach (var k in addKeys)
+                connectablePatchView.Items.Add(k, k);
+        }
+
+        private void connectablePatchView_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (connectablePatchView.SelectedItems.Count >= 0)
+                AddQuery(connectablePatchView.SelectedItems[0].ImageKey);
+        }
 
     }
 

@@ -172,8 +172,8 @@ namespace PatchworkLib.PatchMesh
     /// </summary>
     public class PatchSkeletonBone
     {
-        public PatchSkeletonJoint src;
-        public PatchSkeletonJoint dst;
+        public PatchSkeletonJoint src { get; private set; }
+        public PatchSkeletonJoint dst { get; private set; }
 
         public PatchSkeletonBone(PatchSkeletonJoint src, PatchSkeletonJoint dst)
         {
