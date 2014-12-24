@@ -162,16 +162,22 @@ namespace PatchworkLib.PatchMesh
 
         public void FlushDefomation()
         {
+            FTimer.Resume("FlushDefomation:begin");
             // 制御点をPatchMesh, ARAPで同期させる
             arap.UpdateControlPoint(controlPoints.Select(c => c.position).ToList());
+            FTimer.Pause("FlushDefomation:begin");
 
+            FTimer.Resume("FlushDefomation:flush");
             // ARAP変形
             arap.FlushDefomation();
+            FTimer.Pause("FlushDefomation:flush");
 
+            FTimer.Resume("FlushDefomation:end");
             // 結果を取得
             List<PointF> ptList = arap.CopyMeshPointList();
             for (int i = 0; i < vertices.Count; i++)
                 vertices[i].position = ptList[i];
+            FTimer.Pause("FlushDefomation:end");
         }
 
         public void BeginDeformation()

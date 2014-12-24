@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define USE_PARALLEL_FOR
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -249,6 +251,7 @@ namespace PatchworkLib.ARAPDeformation
                 v0[3 * i + 2] * v1[3 * j + 2];
         }
 
+
         void RigidMLS()
         {
             if (controls.Count < 3)
@@ -256,9 +259,13 @@ namespace PatchworkLib.ARAPDeformation
 
             if (weights == null || A00 == null || A01 == null || A10 == null || A11 == null || D == null)
                 return;
-
+#if USE_PARALLEL_FOR
+            System.Threading.Tasks.Parallel.For(0, meshPointList.Count, vIdx =>
+#else
             for (int vIdx = 0; vIdx < meshPointList.Count; vIdx++)
+#endif
             {
+                FTimer.Resume("1");
                 int offset = vIdx * controls.Count;
 
                 // 追加　2014/11/08
@@ -266,10 +273,16 @@ namespace PatchworkLib.ARAPDeformation
                 for (int i = 0; i < controls.Count; i++)
                     if (weights[i + offset] != 0)
                         nonzeroCnt++;
+                FTimer.Pause("1");
                 if (nonzeroCnt <= 1)
+                {
+#if USE_PARALLEL_FOR
+                    return;
+#else
                     continue;
-
-
+#endif
+                }
+                FTimer.Resume("2");
                 bool flg = false;
                 for (int i = offset; i < offset + controls.Count; i++)
                 {
@@ -281,13 +294,27 @@ namespace PatchworkLib.ARAPDeformation
                         break;
                     }
                 }
+                FTimer.Pause("2");
                 if (flg)
+                {
+#if USE_PARALLEL_FOR
+                    return;
+#else
                     continue;
-
+#endif
+                }
+                FTimer.Resume("3");
                 PointF? Qa = AverageWeight(controls, weights, vIdx);
+                FTimer.Pause("3");
                 if (Qa == null || !Qa.HasValue)
+                {
+#if USE_PARALLEL_FOR
+                    return;
+#else
                     continue;
-
+#endif
+                }
+                FTimer.Resume("4");
                 meshPointList[vIdx] = Qa.Value;
                 float fx = 0;
                 float fy = 0;
@@ -299,6 +326,8 @@ namespace PatchworkLib.ARAPDeformation
                     fx += qx * A00[idx] + qy * A10[idx];
                     fy += qx * A01[idx] + qy * A11[idx];
                 }
+                FTimer.Pause("4");
+                FTimer.Resume("5");
                 float lenD = (float)Math.Sqrt(D[vIdx].X * D[vIdx].X + D[vIdx].Y * D[vIdx].Y);
                 float lenf = (float)Math.Sqrt(fx * fx + fy * fy);
                 float k = lenD / (0.01f + lenf);
@@ -306,7 +335,11 @@ namespace PatchworkLib.ARAPDeformation
                 pt.X += fx * k;
                 pt.Y += fy * k;
                 meshPointList[vIdx] = pt;
+                FTimer.Pause("5");
             }
+#if USE_PARALLEL_FOR
+            );
+#endif
         }
 
         PointF? AverageWeight(List<PointF> controls, float[] weight, int vIdx)

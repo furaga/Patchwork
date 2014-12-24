@@ -51,10 +51,6 @@ namespace Patchwork
             //            public List<RenderQuery> renderPatchQueries = new List<RenderQuery>();
         }
 
-        //---------------------------------------------------------
-        // 描画
-        //---------------------------------------------------------
-
         class RenderQuery
         {
             public PatchSkeletalMesh patch;
@@ -159,13 +155,29 @@ namespace Patchwork
             // パッチをリストに表示する
             foreach (var kv in bitmaps)
             {
-                patchImageList.Images.Add(kv.Key, kv.Value);
+                var patch = dict[kv.Key.Split(':')[1]];
+                var skl = patch.CopySkeleton();
+                var bmp = kv.Value;
+                var bmp2 = DrawSkeltonOnBmp(skl, bmp);
+                patchImageList.Images.Add(kv.Key, bmp2);
                 patchView.Items.Add(kv.Key, kv.Key, kv.Key);
             }
 
             refSkeleton = PatchSkeleton.Load("./settings/refSkeleton.skl");
 
             canvas.MouseWheel += canvas_MouseWheel;
+        }
+
+        Bitmap DrawSkeltonOnBmp(PatchSkeleton skl, Bitmap bmp)
+        {
+            Pen pen = new Pen(Brushes.Blue, 3);
+            var bmp2 = new Bitmap(bmp);
+            using (var g = Graphics.FromImage(bmp2))
+            {
+                foreach (var b in skl.bones)
+                    g.DrawLine(pen, b.src.position, b.dst.position);
+            }
+            return bmp2;
         }
 
         private void timer_Tick(object sender, EventArgs e)
@@ -309,6 +321,8 @@ namespace Patchwork
         {
             if (e.Button == System.Windows.Forms.MouseButtons.Left)
             {
+                FTimer.AllReset();
+
                 if (draggedJoint != null)
                 {
                     Vector3 p = renderer.Unproject(e.Location, 0, canvas.ClientSize, cameraPosition);
@@ -318,6 +332,8 @@ namespace Patchwork
                         PatchSkeletonFitting.Fitting(query.patch, refSkeleton);
                     }
                 }
+
+//                Console.WriteLine(FTimer.Output());
             }
 
 
@@ -496,9 +512,18 @@ namespace Patchwork
             }
         }
 
+        private void stretchSlider_Scroll(object sender, EventArgs e)
+        {
+            float stretch = stretchSlider.Value * 0.1f;
+            foreach (var q in selectingQueries)
+            {
+                q.patch.Stretch(stretch, refSkeleton);
+                PatchSkeletonFitting.Fitting(q.patch, refSkeleton);
+            }
+        }
+
         private void reverseLeftrightRToolStripMenuItem_Click(object sender, EventArgs e)
         {
-
             foreach (var q in selectingQueries)
             {
                 q.patch.Scale(-1, 1);
@@ -591,6 +616,8 @@ namespace Patchwork
                     cmeshes.Add(kv.Key);
                 smeshes.RemoveAt(smeshes.Count - 1);
             }
+
+//            cmeshes.OrderBy(// TODO);
 
             return cmeshes;
         }

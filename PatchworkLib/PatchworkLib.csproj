@@ -75,6 +75,7 @@
     <Compile Include="PatchMesh\PatchSkeleton.cs" />
     <Compile Include="PatchMesh\PatchSkeletonFitting.cs" />
     <Compile Include="PatchMesh\PatchSkeletonFKMover.cs" />
+    <Compile Include="PatchMesh\PatchSynthesizer.cs" />
     <Compile Include="PatchMesh\PatchTriangle.cs" />
     <Compile Include="PatchMesh\PatchVertex.cs" />
     <Compile Include="PatchMesh\PatchConnector.cs" />

@@ -14,10 +14,11 @@ namespace PatchworkLib.PatchMesh
 {
     public class PatchSkeletonFitting
     {
-        public static void Fitting(PatchSkeletalMesh mesh, PatchSkeleton skl)
+        public static void Fitting(PatchSkeletalMesh smesh, PatchSkeleton skl)
         {
+            FTimer.Resume("Fitting:SetCtrl");
             // スケルトンに合わせて制御点を移動
-            foreach (var kv in mesh.skeletalControlPointDict)
+            foreach (var kv in smesh.skeletalControlPointDict)
             {
                 PatchSkeletonBone b = kv.Key;
                 List<PointF> orgPts = kv.Value;
@@ -31,12 +32,27 @@ namespace PatchworkLib.PatchMesh
                 for (int i = 0; i < orgPts.Count; i++)
                 {
                     float t = (float)i / (orgPts.Count - 1);
-                    float x = br.src.position.X * (1 - t) + br.dst.position.X * t;
-                    float y = br.src.position.Y * (1 - t) + br.dst.position.Y * t;
-                    PatchControlPoint c = mesh.mesh.FindControlPoint(orgPts[i]);
+
+                    // smesh.skeletalControlPointExpandToXXXの値にしたがって、src, dst方向にそれぞれ伸長させる
+                    float exSrc = smesh.endJoints.Contains(b.src.name) ? smesh.stretchRatio : 0;
+                    float exDst = smesh.endJoints.Contains(b.dst.name) ? smesh.stretchRatio : 0;
+                    float dx = br.dst.position.X - br.src.position.X;
+                    float dy = br.dst.position.Y - br.src.position.Y;
+                    t *= 1 + exSrc + exDst;
+                    float lx = dx * t;
+                    float ly = dy * t;
+                    float ox = -dx * exSrc;
+                    float oy = -dy * exSrc;
+                    float x = br.src.position.X + ox + lx;
+                    float y = br.src.position.Y + oy + ly;
+                    
+//                    float x = br.src.position.X * (1 - t) + br.dst.position.X * t;
+//                    float y = br.src.position.Y * (1 - t) + br.dst.position.Y * t;
+
+                    PatchControlPoint c = smesh.mesh.FindControlPoint(orgPts[i]);
                     if (c == null)
                         continue;
-                    mesh.mesh.TranslateControlPoint(c.position, new PointF(x, y), false);
+                    smesh.mesh.TranslateControlPoint(c.position, new PointF(x, y), false);
                 }
 
                 // スケルトン(mesh.skl)も動かす
@@ -44,8 +60,12 @@ namespace PatchworkLib.PatchMesh
                 b.dst.position = br.dst.position;
             
             }
+            FTimer.Pause("Fitting:SetCtrl");
+
             // 制御点の移動を反映してメッシュ変形
-            mesh.mesh.FlushDefomation();
+            FTimer.Resume("Fitting:FlushDefomation");
+            smesh.mesh.FlushDefomation();
+            FTimer.Pause("Fitting:FlushDefomation");
 
 
         }

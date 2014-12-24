@@ -964,16 +964,7 @@ namespace PatchworkLib.PatchMesh
 
                 // 切り口の端点が新しいメッシュ内でどこにあるか
                 sections.Add(GetMappedSection(sec, vertices1, path1, combinedPath, p2i));
-/*
-                PointF p0 = vertices1[FMath.Rem(path1[sec.First], vertices1.Count)].position;
-                int newIdx0 = combinedPath.IndexOf(p2i[p0]);
-                PointF p1 = vertices1[FMath.Rem(path1[sec.First + sec.Length - 1, vertices1.Count)].position;
-                int newIdx1 = combinedPath.IndexOf(p2i[p1]);
-                if (newIdx0 > newIdx1)
-                    FMath.Swap(ref newIdx0, ref newIdx1);
-                PatchSection newSection = new PatchSection(newIdx0, newIdx1 - newIdx0 + 1);
-                sections.Add(newSection);
-  */          }
+          }
             foreach (var sec in sections2)
             {
                 if (sec == exceptSection2)
@@ -981,16 +972,7 @@ namespace PatchworkLib.PatchMesh
 
                 // 切り口の端点が新しいメッシュ内でどこにあるか
                 sections.Add(GetMappedSection(sec, vertices2, path2, combinedPath, p2i));
-/*                PointF p0 = vertices2[FMath.Rem(sec.First, vertices2.Count)].position;
-                int newIdx0 = combinedPath.IndexOf(p2i[p0]);
-                PointF p1 = vertices2[FMath.Rem(sec.First + sec.Length - 1, vertices2.Count)].position;
-                int newIdx1 = combinedPath.IndexOf(p2i[p1]);
-                if (newIdx0 > newIdx1)
-                    FMath.Swap(ref newIdx0, ref newIdx1);
-
-                PatchSection newSection = new PatchSection(newIdx0, newIdx1 - newIdx0 + 1);
-                sections.Add(newSection);
-  */          }
+}
             return sections;
         }
 
