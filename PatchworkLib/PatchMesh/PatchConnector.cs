@@ -283,8 +283,9 @@ namespace PatchworkLib.PatchMesh
             {
                 for (int i = sec.First; i < sec.First + sec.Length - 1; i++)
                 {
-                    var p1 = smesh.mesh.vertices[smesh.mesh.pathIndices[i]].position;
-                    var p2 = smesh.mesh.vertices[smesh.mesh.pathIndices[i + 1]].position;
+                    int n = smesh.mesh.pathIndices.Count;
+                    var p1 = smesh.mesh.vertices[smesh.mesh.pathIndices[FMath.Rem(i, n)]].position;
+                    var p2 = smesh.mesh.vertices[smesh.mesh.pathIndices[FMath.Rem(i + 1, n)]].position;
                     if (FLib.FMath.IsCrossed(p1, p2, bone.src.position, bone.dst.position))
                     {
                         sections.Add(sec);

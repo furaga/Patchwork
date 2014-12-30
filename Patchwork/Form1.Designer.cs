@@ -50,6 +50,8 @@
             this.patchImageList = new System.Windows.Forms.ImageList(this.components);
             this.connectablePatchView = new System.Windows.Forms.ListView();
             this.splitContainer2 = new System.Windows.Forms.SplitContainer();
+            this.label2 = new System.Windows.Forms.Label();
+            this.stretchSlider = new System.Windows.Forms.TrackBar();
             this.CBoxDrawSkeleton = new System.Windows.Forms.CheckBox();
             this.CBoxDrawRefSkeleton = new System.Windows.Forms.CheckBox();
             this.CBoxDrawPolygon = new System.Windows.Forms.CheckBox();
@@ -60,8 +62,8 @@
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.timer = new System.Windows.Forms.Timer(this.components);
-            this.label2 = new System.Windows.Forms.Label();
-            this.stretchSlider = new System.Windows.Forms.TrackBar();
+            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
+            this.placePatchesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
@@ -75,9 +77,9 @@
             this.splitContainer2.Panel1.SuspendLayout();
             this.splitContainer2.Panel2.SuspendLayout();
             this.splitContainer2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.stretchSlider)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.scaleSlider)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.canvas)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.stretchSlider)).BeginInit();
             this.SuspendLayout();
             // 
             // menuStrip
@@ -128,7 +130,9 @@
             this.bringToFrontToolStripMenuItem,
             this.bringForwardToolStripMenuItem,
             this.bringToBackToolStripMenuItem,
-            this.bringBackwardToolStripMenuItem});
+            this.bringBackwardToolStripMenuItem,
+            this.toolStripSeparator3,
+            this.placePatchesToolStripMenuItem});
             this.patchPToolStripMenuItem.Name = "patchPToolStripMenuItem";
             this.patchPToolStripMenuItem.Size = new System.Drawing.Size(72, 20);
             this.patchPToolStripMenuItem.Text = "Patch (&P)";
@@ -301,6 +305,26 @@
             this.splitContainer2.SplitterDistance = 109;
             this.splitContainer2.TabIndex = 1;
             // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Font = new System.Drawing.Font("MS UI Gothic", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
+            this.label2.Location = new System.Drawing.Point(208, 57);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(60, 16);
+            this.label2.TabIndex = 7;
+            this.label2.Text = "Stretch";
+            // 
+            // stretchSlider
+            // 
+            this.stretchSlider.Location = new System.Drawing.Point(259, 57);
+            this.stretchSlider.Maximum = 100;
+            this.stretchSlider.Name = "stretchSlider";
+            this.stretchSlider.Size = new System.Drawing.Size(304, 45);
+            this.stretchSlider.TabIndex = 6;
+            this.stretchSlider.Value = 10;
+            this.stretchSlider.Scroll += new System.EventHandler(this.stretchSlider_Scroll);
+            // 
             // CBoxDrawSkeleton
             // 
             this.CBoxDrawSkeleton.AutoSize = true;
@@ -390,25 +414,17 @@
             this.timer.Interval = 10;
             this.timer.Tick += new System.EventHandler(this.timer_Tick);
             // 
-            // label2
+            // toolStripSeparator3
             // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("MS UI Gothic", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(128)));
-            this.label2.Location = new System.Drawing.Point(208, 57);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(60, 16);
-            this.label2.TabIndex = 7;
-            this.label2.Text = "Stretch";
+            this.toolStripSeparator3.Name = "toolStripSeparator3";
+            this.toolStripSeparator3.Size = new System.Drawing.Size(247, 6);
             // 
-            // stretchSlider
+            // placePatchesToolStripMenuItem
             // 
-            this.stretchSlider.Location = new System.Drawing.Point(259, 57);
-            this.stretchSlider.Maximum = 100;
-            this.stretchSlider.Name = "stretchSlider";
-            this.stretchSlider.Size = new System.Drawing.Size(304, 45);
-            this.stretchSlider.TabIndex = 6;
-            this.stretchSlider.Value = 10;
-            this.stretchSlider.Scroll += new System.EventHandler(this.stretchSlider_Scroll);
+            this.placePatchesToolStripMenuItem.Name = "placePatchesToolStripMenuItem";
+            this.placePatchesToolStripMenuItem.Size = new System.Drawing.Size(250, 22);
+            this.placePatchesToolStripMenuItem.Text = "Place patches";
+            this.placePatchesToolStripMenuItem.Click += new System.EventHandler(this.placePatchesToolStripMenuItem_Click);
             // 
             // Form1
             // 
@@ -437,9 +453,9 @@
             this.splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer2)).EndInit();
             this.splitContainer2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.stretchSlider)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.scaleSlider)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.canvas)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.stretchSlider)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -480,6 +496,8 @@
         private System.Windows.Forms.ListView connectablePatchView;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TrackBar stretchSlider;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
+        private System.Windows.Forms.ToolStripMenuItem placePatchesToolStripMenuItem;
     }
 }
 

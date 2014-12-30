@@ -645,6 +645,154 @@ namespace Patchwork
                 AddQuery(connectablePatchView.SelectedItems[0].ImageKey);
         }
 
+        /// <summary>
+        /// 現在のrefSkeletonの形に最もフィットするpatch群を探索してcanvas上に自動挿入
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void placePatchesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // boneKey -> it's cost
+            var matchCostDict = new Dictionary<string, float>();
+
+            // bone -> render queries that have the bone
+            var bone2queryKvs = new Dictionary<string, HashSet<KeyValuePair<string, RenderQuery>>>();
+            foreach (var b in refSkeleton.bones)
+                bone2queryKvs[b.src.name + "->" + b.dst.name] = new HashSet<KeyValuePair<string, RenderQuery>>();
+
+            var query2skl = new Dictionary<RenderQuery, PatchSkeleton>();
+
+            foreach (var kv in renderQueryPool)
+            {
+                var skl = kv.Value.patch.CopySkeleton();
+                query2skl[kv.Value] = skl;
+
+                // set matchCostDict
+                matchCostDict[kv.Key] = MatchCost(skl, refSkeleton);
+
+                // set bone2querKvs
+                foreach (var b in skl.bones)
+                {
+                    var key = b.src.name + "->" + b.dst.name;
+                    if (bone2queryKvs.ContainsKey(key))
+                        bone2queryKvs[key].Add(kv);
+                }
+            }
+
+
+            // patchが割り当てられていないboneのリスト
+            var uncheckedBones = refSkeleton.bones.ToList();
+
+            // 追加するpatch (RenderQuery) のリスト
+            List<RenderQuery> queries = new List<RenderQuery>();
+
+            while (uncheckedBones.Count > 0)
+            {
+                int orgCnt = uncheckedBones.Count;
+
+                var ub = uncheckedBones[0];
+
+                // ボーンubに代入しうるpatchのリスト（マッチ率順でソート済み）
+                var queryKvs = bone2queryKvs[bone2key(ub)].OrderByDescending(kv => matchCostDict[kv.Key]);
+               
+                KeyValuePair<string, RenderQuery> appendKv = new KeyValuePair<string,RenderQuery>();
+
+                foreach (var kv in queryKvs)
+                {
+                    // 割り当てられていないボーンだけからなるpatchのみ採用
+                    if (query2skl[kv.Value].bones.All(b => uncheckedBones.Any(_b => bone2key(b) == bone2key(_b)))) 
+                    {
+                        appendKv = kv;
+                        break;
+                    }
+                }
+
+                // appendKvを追加し、さらにそれに接続可能なpatchを再帰的に探してひとつずつ追加
+                if (appendKv.Key != null)
+                {
+                    AddQuery(appendKv.Key);
+                    queries.Add(appendKv.Value);
+                    while (true)
+                    {
+                        var keys = ConnectableRenderQueries(renderQueryPool, queries, refSkeleton);
+                        if (keys.Count <= 0)
+                            break;
+                        var sortedKeys = keys.OrderByDescending(k => matchCostDict[k]).ToList();
+                        AddQuery(sortedKeys[0]);
+                        queries.Add(renderQueryPool[sortedKeys[0]]);
+                    }
+                }
+
+                foreach (var _q in queries)
+                {
+                    var skl = query2skl[_q];
+                    foreach (var _b in skl.bones)
+                    {
+                        if (uncheckedBones.Any(__b => bone2key(__b) == bone2key(_b)))
+                        {
+                            var removeBone = uncheckedBones.First(__b => bone2key(__b) == bone2key(_b));
+                            uncheckedBones.Remove(removeBone);
+                        }
+                    }
+                }
+
+                if (orgCnt == uncheckedBones.Count)
+                    break;
+            }
+            
+        }
+
+        string bone2key(PatchSkeletonBone bone)
+        {
+            return bone.src.name + "->" + bone.dst.name;
+        }
+
+        float MatchCost(PatchSkeleton skl, PatchSkeleton refSkeleton)
+        {
+            Dictionary<string, List<PatchSkeletonBone>> bonePairs = new Dictionary<string,List<PatchSkeletonBone>>();
+            foreach (var b in skl.bones)
+            {
+                var key = bone2key(b);
+                bonePairs[key] = new List<PatchSkeletonBone>() { b };
+            }
+            foreach (var b in refSkeleton.bones)
+            {
+                var key = bone2key(b); ;
+                if (bonePairs.ContainsKey(key))
+                    bonePairs[key].Add(b);
+            }
+
+            if (bonePairs.Count <= 0)
+                return float.MaxValue;
+
+            float cost = 0;
+
+            foreach (var kv in bonePairs)
+            {
+                if (kv.Value.Count != 2)
+                    continue;
+                
+                var b1 = kv.Value[0];
+                var b2 = kv.Value[1];
+
+                float vx1 = b1.dst.position.X - b1.src.position.X;
+                float vy1 = b1.dst.position.Y - b1.src.position.Y;
+                float sqLen1 = vx1 * vx1 + vy1 * vy1; 
+                float vx2 = b2.dst.position.X - b2.src.position.X;
+                float vy2 = b2.dst.position.Y - b2.src.position.Y;
+                float sqLen2 = vx2 * vx2 + vy2 * vy2;
+
+                float dx = vx1 - vx2;
+                float dy = vy1 - vy2;
+                
+                cost = (dx * dx + dy * dy) / Math.Max(sqLen1, sqLen2);
+            }
+
+            cost /= bonePairs.Count;
+
+            return cost;
+        }
+
     }
 
 }
